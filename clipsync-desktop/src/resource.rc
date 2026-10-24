@@ -1,0 +1,43 @@
+#include <windows.h>
+#include "resource.h"
+
+1 24 "clipsync.manifest"
+
+IDD_SETTINGS DIALOGEX 0, 0, 250, 166
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "ClipSync Settings"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "Password (must match the phone):", -1, 10, 10, 230, 9
+    EDITTEXT        IDC_PASSWORD, 10, 21, 230, 14, ES_PASSWORD | ES_AUTOHSCROLL
+    LTEXT           "Device name:", -1, 10, 43, 150, 9
+    EDITTEXT        IDC_NAME, 10, 54, 150, 14, ES_AUTOHSCROLL
+    LTEXT           "Port:", -1, 170, 43, 70, 9
+    EDITTEXT        IDC_PORT, 170, 54, 70, 14, ES_NUMBER
+    AUTOCHECKBOX    "Bluetooth fallback (text and images)", IDC_BT, 10, 76, 230, 12
+    LTEXT           "", IDC_ADDR, 10, 96, 230, 36
+    DEFPUSHBUTTON   "OK", IDOK, 136, 144, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 190, 144, 50, 14
+END
+
+1 VERSIONINFO
+FILEVERSION 1, 0, 0, 0
+PRODUCTVERSION 1, 0, 0, 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "ClipSync"
+            VALUE "ProductName", "ClipSync"
+            VALUE "FileVersion", "1.0.0"
+            VALUE "ProductVersion", "1.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

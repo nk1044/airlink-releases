@@ -1,0 +1,38 @@
+name: Release
+
+# Push a tag like v1.2.0 to build a universal AirLink.dmg and publish it as a GitHub Release.
+# The website's download button points at releases/latest/download/AirLink.dmg.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - name: Test
+        run: swift test
+      - name: Build universal app
+        run: UNIVERSAL=1 VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER="${{ github.run_number }}" ./scripts/build.sh
+      - name: Make DMG
+        run: ./scripts/make-dmg.sh
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sed "s/{{VERSION}}/$version/g" ../.github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/AirLink.dmg dist/AirLink.dmg.sha256 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/AirLink.dmg dist/AirLink.dmg.sha256 \
+              --title "AirLink $version" --notes-file "$RUNNER_TEMP/notes.md"
+          fi

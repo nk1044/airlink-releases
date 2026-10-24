@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/cmflink-probe/cmflink-probe.csproj" />
+    <Project Path="src/CmfLink.App/CmfLink.App.csproj" />
+    <Project Path="src/CmfLink.Bluetooth/CmfLink.Bluetooth.csproj" />
+    <Project Path="src/CmfLink.Core/CmfLink.Core.csproj" />
+    <Project Path="src/CmfLink.Protocol/CmfLink.Protocol.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CmfLink.Tests/CmfLink.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Command-line protocol probe: prints every frame in and out. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>CmfLink.Probe</RootNamespace>
+    <AssemblyName>cmflink-probe</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CmfLink.Bluetooth\CmfLink.Bluetooth.csproj" />
+  </ItemGroup>
+</Project>

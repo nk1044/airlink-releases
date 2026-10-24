@@ -1,0 +1,23 @@
+# ClipSync desktop (build.bat output: clipsync.exe, testclient.exe, resource.o)
+clipsync-desktop/build/
+
+# ClipSync Android (Gradle and Android Studio)
+clipsync-android/.gradle/
+clipsync-android/.kotlin/
+clipsync-android/build/
+clipsync-android/app/build/
+clipsync-android/local.properties
+clipsync-android/captures/
+clipsync-android/.externalNativeBuild/
+clipsync-android/.cxx/
+
+# Signing keys
+*.jks
+*.keystore
+
+# IDE and OS files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini

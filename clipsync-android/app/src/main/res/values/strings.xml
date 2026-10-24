@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ClipSync</string>
+    <string name="tile_label">ClipSync</string>
+    <string name="share_label">Send to PC</string>
+</resources>
