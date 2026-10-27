@@ -18,3 +18,5 @@ void files_rx_abort(RxState *rx);  /* connection lost */
 
 BOOL files_download_dir(WCHAR *out, size_t n);
 void files_install_sendto(void);
+void files_remove_sendto(void);
+void files_delete_self_on_exit(void); /* uninstall: deletes clipsync.exe a moment after the process exits */

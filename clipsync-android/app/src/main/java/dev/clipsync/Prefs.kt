@@ -37,8 +37,16 @@ class Prefs(context: Context) {
     fun saveLast(host: String, port: Int) = sp.edit().putString("last_host", host).putInt("last_port", port).apply()
 
     var btEnabled: Boolean
-        get() = sp.getBoolean("bt_enabled", false)
+        get() = sp.getBoolean("bt_enabled", true)
         set(v) = sp.edit().putBoolean("bt_enabled", v).apply()
+
+    var tileAdded: Boolean
+        get() = sp.getBoolean("tile_added", false)
+        set(v) = sp.edit().putBoolean("tile_added", v).apply()
+
+    var autostartVisited: Boolean
+        get() = sp.getBoolean("autostart_visited", false)
+        set(v) = sp.edit().putBoolean("autostart_visited", v).apply()
 
     var btAddress: String
         get() = sp.getString("bt_address", "")!!

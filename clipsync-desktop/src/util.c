@@ -1,4 +1,5 @@
 #include "common.h"
+#include <iphlpapi.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -61,4 +62,34 @@ void file_list_free(FileList *l)
     for (int i = 0; i < l->n; i++) free(l->paths[i]);
     free(l->paths);
     memset(l, 0, sizeof *l);
+}
+
+int lan_addresses(LanAddr *out, int max)
+{
+    ULONG size = 16384, flags = GAA_FLAG_INCLUDE_GATEWAYS | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST |
+                               GAA_FLAG_SKIP_DNS_SERVER;
+    IP_ADAPTER_ADDRESSES *list = malloc(size);
+    int n = 0;
+    if (list && GetAdaptersAddresses(AF_INET, flags, NULL, list, &size) == ERROR_BUFFER_OVERFLOW) {
+        free(list);
+        list = malloc(size);
+    }
+    if (!list || GetAdaptersAddresses(AF_INET, flags, NULL, list, &size) != NO_ERROR) {
+        free(list);
+        return 0;
+    }
+    for (IP_ADAPTER_ADDRESSES *a = list; a && n < max; a = a->Next) {
+        if (a->OperStatus != IfOperStatusUp || !a->FirstGatewayAddress ||
+            (a->IfType != IF_TYPE_IEEE80211 && a->IfType != IF_TYPE_ETHERNET_CSMACD))
+            continue;
+        struct sockaddr_in *gw = (struct sockaddr_in *)a->FirstGatewayAddress->Address.lpSockaddr;
+        for (IP_ADAPTER_UNICAST_ADDRESS *u = a->FirstUnicastAddress; u && n < max; u = u->Next) {
+            out[n].ip = ((struct sockaddr_in *)u->Address.lpSockaddr)->sin_addr;
+            out[n].prefix = u->OnLinkPrefixLength;
+            out[n].gateway = gw->sin_addr;
+            n++;
+        }
+    }
+    free(list);
+    return n;
 }

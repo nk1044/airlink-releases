@@ -32,6 +32,7 @@ enum {
     WM_APP_RECV_FILES, /* lParam: FileList* */
     WM_APP_NOTIFY,     /* lParam: malloc'd WCHAR* */
     WM_APP_PROGRESS,   /* wParam: percent or (WPARAM)-1 when done, lParam: MAKELPARAM(file, count) */
+    WM_APP_FIREWALL,   /* wParam: TRUE if the firewall lets the phone in */
 };
 
 typedef struct {
@@ -70,3 +71,10 @@ UINT64 fnv64(const void *data, size_t len);
 void post_notify(const WCHAR *fmt, ...);
 void file_list_add(FileList *l, WCHAR *owned_path);
 void file_list_free(FileList *l);
+
+/* This PC's IPv4 addresses on Wi-Fi/Ethernet networks that have a gateway (skips VPN and virtual adapters). */
+typedef struct {
+    struct in_addr ip, gateway;
+    ULONG prefix;
+} LanAddr;
+int lan_addresses(LanAddr *out, int max);

@@ -3,6 +3,7 @@
 #include <shlobj.h>
 #include <wincrypt.h>
 #include <stdio.h>
+#include <wchar.h>
 
 #define SECTION L"ClipSync"
 #define RUN_KEY L"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
@@ -71,6 +72,7 @@ void config_load(void)
     g_cfg.port = (int)GetPrivateProfileIntW(SECTION, L"Port", CS_TCP_PORT_DEFAULT, g_ini);
     g_cfg.bluetooth = GetPrivateProfileIntW(SECTION, L"Bluetooth", 1, g_ini) != 0;
     g_cfg.paused = GetPrivateProfileIntW(SECTION, L"Paused", 0, g_ini) != 0;
+    GetPrivateProfileStringW(SECTION, L"PhoneName", L"", g_cfg.phone, ARRAYSIZE(g_cfg.phone), g_ini);
     GetPrivateProfileStringW(SECTION, L"Name", L"", g_cfg.name, ARRAYSIZE(g_cfg.name), g_ini);
     if (!g_cfg.name[0]) {
         DWORD n = ARRAYSIZE(g_cfg.name);
@@ -106,6 +108,69 @@ BOOL config_set_password(const WCHAR *password)
     config_unlock();
     SecureZeroMemory(key, sizeof key);
     return TRUE;
+}
+
+void config_set_phone_ip(const struct in_addr *ip)
+{
+    WCHAR now[INET_ADDRSTRLEN], old[INET_ADDRSTRLEN];
+    if (!InetNtopW(AF_INET, ip, now, ARRAYSIZE(now))) return;
+    GetPrivateProfileStringW(SECTION, L"PhoneIP", L"", old, ARRAYSIZE(old), g_ini);
+    if (wcscmp(now, old)) WritePrivateProfileStringW(SECTION, L"PhoneIP", now, g_ini);
+}
+
+BOOL config_get_phone_ip(struct in_addr *ip)
+{
+    WCHAR s[INET_ADDRSTRLEN];
+    GetPrivateProfileStringW(SECTION, L"PhoneIP", L"", s, ARRAYSIZE(s), g_ini);
+    return s[0] && InetPtonW(AF_INET, s, ip) == 1;
+}
+
+void config_set_phone_bt(UINT64 addr)
+{
+    WCHAR now[20], old[20];
+    swprintf(now, ARRAYSIZE(now), L"%012llx", (unsigned long long)addr);
+    GetPrivateProfileStringW(SECTION, L"PhoneBT", L"", old, ARRAYSIZE(old), g_ini);
+    if (wcscmp(now, old)) WritePrivateProfileStringW(SECTION, L"PhoneBT", now, g_ini);
+}
+
+UINT64 config_get_phone_bt(void)
+{
+    WCHAR s[20];
+    GetPrivateProfileStringW(SECTION, L"PhoneBT", L"", s, ARRAYSIZE(s), g_ini);
+    return wcstoull(s, NULL, 16);
+}
+
+BOOL config_firewall_done(void)
+{
+    return GetPrivateProfileIntW(SECTION, L"FirewallDone", 0, g_ini) != 0;
+}
+
+void config_set_firewall_done(void)
+{
+    WritePrivateProfileStringW(SECTION, L"FirewallDone", L"1", g_ini);
+}
+
+void config_set_key(const BYTE key[32], const WCHAR *phone)
+{
+    config_lock();
+    memcpy(g_cfg.key, key, 32);
+    g_cfg.has_key = TRUE;
+    wcsncpy(g_cfg.phone, phone, ARRAYSIZE(g_cfg.phone) - 1);
+    save_key();
+    config_unlock();
+    WritePrivateProfileStringW(SECTION, L"PhoneName", phone, g_ini);
+}
+
+void config_delete_all(void)
+{
+    WCHAR dir[MAX_PATH];
+    DeleteFileW(g_ini);
+    wcscpy(dir, g_ini);
+    WCHAR *slash = wcsrchr(dir, L'\\');
+    if (slash) {
+        *slash = 0;
+        RemoveDirectoryW(dir);
+    }
 }
 
 BOOL autostart_get(void)

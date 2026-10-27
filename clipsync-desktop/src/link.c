@@ -8,6 +8,10 @@
  *  sender thread  the only writer; text/images always go ahead of file chunks.
  *
  * The most recent authenticated connection becomes the active one and the previous one is closed.
+ *
+ * The phone always dials, but the PC can nudge it to dial right away: a UDP "hello" to the phone's last
+ * Wi-Fi address and a Bluetooth "wake" connect to the phone. Sent at startup, after sleep, when the PC's
+ * network changes, and when Bluetooth comes back.
  */
 #include "link.h"
 #include "proto.h"
@@ -15,23 +19,27 @@
 #include "config.h"
 #include "image.h"
 #include "files.h"
+#include "pair.h"
 #include <objbase.h>
 #include <ws2bth.h>
 #include <mstcpip.h>
+#include <iphlpapi.h>
 
 #ifndef SIO_UDP_CONNRESET
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
 #endif
 
-#define HEARTBEAT_MS   240000ULL
-#define DEAD_MS        600000ULL
-#define BT_RETRY_MS    300000ULL
+#define HEARTBEAT_MS   120000ULL
+#define DEAD_MS        300000ULL
+#define BT_RETRY_MS    30000ULL
+#define HELLO_DELAY_MS 3000ULL  /* let a new network settle before saying hello */
 #define TEXT_MAX       (1u << 20)
 #define IMAGE_MAX_WIFI (10u << 20)
 #define IMAGE_MAX_BT   (2u << 20)
 
-/* c1b5d7a2-3f4e-4b8a-9d6c-2e7f1a0b5c93 */
+/* c1b5d7a2-3f4e-4b8a-9d6c-2e7f1a0b5c93: the PC's service; ...5c94: the phone's wake service */
 static const GUID BT_SERVICE_UUID = { 0xc1b5d7a2, 0x3f4e, 0x4b8a, { 0x9d, 0x6c, 0x2e, 0x7f, 0x1a, 0x0b, 0x5c, 0x93 } };
+static const GUID BT_WAKE_UUID = { 0xc1b5d7a2, 0x3f4e, 0x4b8a, { 0x9d, 0x6c, 0x2e, 0x7f, 0x1a, 0x0b, 0x5c, 0x94 } };
 
 enum { IT_FRAME, IT_DIB, IT_FILES };
 
@@ -52,9 +60,20 @@ static HANDLE g_send_event, g_net_thread, g_send_thread;
 static SOCKET g_wake = INVALID_SOCKET;
 static struct sockaddr_in g_wake_addr;
 static volatile LONG g_quit, g_restart, g_cancel;
+static volatile LONG g_nudge;         /* send hello + Bluetooth wake */
+static volatile ULONGLONG g_hello_at; /* network changed: send hello at this tick (0 = none) */
+static volatile LONG g_waking;
+static HANDLE g_ip_notify;
 
 static ULONGLONG g_fail_window, g_block_until;
 static int g_fail_count;
+
+/* Bluetooth listener state (net thread); g_bt_addr also tells the phone our Bluetooth address. */
+static SOCKET g_bt = INVALID_SOCKET;
+static HANDLE g_bt_thread;
+static SOCKADDR_BTH g_bt_addr;
+static CSADDR_INFO g_bt_csa;
+static WSAQUERYSETW g_bt_qs;
 
 /* ---- queue ---- */
 
@@ -265,23 +284,32 @@ static void auth_failed(const WCHAR *who)
     if (n == 1) post_notify(L"Wrong password from %s. Check the password on the phone.", who);
 }
 
-/* Handshake on a freshly accepted socket; becomes the active connection on success. */
+/* A freshly accepted socket: a link request ("CSYP"), or a session ("CSY1") that becomes the active connection. */
 static void serve(SOCKET s, int kind, const struct sockaddr *from)
 {
     WCHAR who[64] = L"a Bluetooth device";
     DWORD hs_timeout = 10000, io_timeout = 30000;
+    char magic[4];
     Config cfg;
 
-    EnterCriticalSection(&g_cs);
-    BOOL blocked = GetTickCount64() < g_block_until;
-    LeaveCriticalSection(&g_cs);
     config_snapshot(&cfg);
-    if (blocked || !cfg.has_key) {
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&hs_timeout, sizeof hs_timeout);
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (char *)&io_timeout, sizeof io_timeout);
+    if (!proto_recv_all(s, magic, 4)) {
         closesocket(s);
         goto out;
     }
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&hs_timeout, sizeof hs_timeout);
-    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (char *)&io_timeout, sizeof io_timeout);
+    if (!memcmp(magic, "CSYP", 4)) {
+        pair_start(s, kind); /* only answered while "Link a phone" is open */
+        goto out;
+    }
+    EnterCriticalSection(&g_cs);
+    BOOL blocked = GetTickCount64() < g_block_until;
+    LeaveCriticalSection(&g_cs);
+    if (memcmp(magic, "CSY1", 4) || blocked || !cfg.has_key) {
+        closesocket(s);
+        goto out;
+    }
     if (kind == LINK_WIFI) {
         BOOL on = TRUE;
         setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof on);
@@ -298,12 +326,39 @@ static void serve(SOCKET s, int kind, const struct sockaddr *from)
         goto out;
     }
     setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&io_timeout, sizeof io_timeout);
+
+    /* Tell the phone our Bluetooth address, so its Bluetooth fallback needs no setup. Safe: c isn't shared yet. */
+    UINT64 bt = g_bt_addr.btAddr;
+    if (bt) {
+        BYTE info[8] = { 0x01, 6 };
+        for (int i = 0; i < 6; i++) info[2 + i] = (BYTE)(bt >> (40 - 8 * i));
+        proto_send(c, T_INFO, info, sizeof info, NULL, 0);
+    }
+    /* Remember where the phone is, to nudge it after a restart or sleep. */
+    if (kind == LINK_WIFI)
+        config_set_phone_ip(&((const struct sockaddr_in *)from)->sin_addr);
+    else
+        config_set_phone_bt(((const SOCKADDR_BTH *)from)->btAddr);
     adopt(c);
 out:
     SecureZeroMemory(cfg.key, sizeof cfg.key);
 }
 
 /* ---- discovery ---- */
+
+/* "CSYQ" -> "CSYR" + port + name: "who's ready to link?" Answered only while "Link a phone" is open. */
+static void answer_link_query(SOCKET u, const struct sockaddr_in *from)
+{
+    BYTE reply[6 + 64];
+    int nl = 0;
+    char *name = utf8_from_wide(g_cfg.name, (int)wcslen(g_cfg.name), &nl);
+    nl = name ? utf8_clip(name, nl, 64) : 0;
+    memcpy(reply, "CSYR", 4);
+    put_be16(reply + 4, (unsigned)g_cfg.port);
+    if (nl) memcpy(reply + 6, name, (size_t)nl);
+    free(name);
+    sendto(u, (char *)reply, 6 + nl, 0, (const struct sockaddr *)from, sizeof *from);
+}
 
 static void handle_discovery(SOCKET u)
 {
@@ -312,6 +367,10 @@ static void handle_discovery(SOCKET u)
     struct sockaddr_in from;
     int fl = sizeof from;
     int n = recvfrom(u, (char *)pkt, sizeof pkt, 0, (struct sockaddr *)&from, &fl);
+    if (n == 4 && !memcmp(pkt, "CSYQ", 4)) {
+        if (pair_mode()) answer_link_query(u, &from);
+        return;
+    }
     if (n != 36 || memcmp(pkt, "CSYD", 4)) return;
 
     Config cfg;
@@ -359,9 +418,10 @@ static SOCKET open_udp(void)
 {
     SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (s == INVALID_SOCKET) return s;
-    BOOL off = FALSE;
+    BOOL off = FALSE, on = TRUE;
     DWORD ret;
     WSAIoctl(s, SIO_UDP_CONNRESET, &off, sizeof off, NULL, 0, &ret, NULL, NULL);
+    setsockopt(s, SOL_SOCKET, SO_BROADCAST, (char *)&on, sizeof on); /* hellos to each local network */
     struct sockaddr_in a = { 0 };
     a.sin_family = AF_INET;
     a.sin_port = htons(CS_UDP_PORT);
@@ -374,21 +434,119 @@ static SOCKET open_udp(void)
 }
 
 /* Bluetooth: RFCOMM listener registered in SDP under BT_SERVICE_UUID. */
-static SOCKET g_bt = INVALID_SOCKET;
-static HANDLE g_bt_thread;
-static SOCKADDR_BTH g_bt_addr;
-static CSADDR_INFO g_bt_csa;
-static WSAQUERYSETW g_bt_qs;
-
 static DWORD WINAPI bt_main(void *arg)
 {
     SOCKET l = (SOCKET)arg;
     for (;;) {
-        SOCKET s = accept(l, NULL, NULL);
+        SOCKADDR_BTH from = { 0 };
+        int fl = sizeof from;
+        SOCKET s = accept(l, (struct sockaddr *)&from, &fl);
         if (s == INVALID_SOCKET) break; /* listener closed or radio gone */
-        serve(s, LINK_BT, NULL);
+        serve(s, LINK_BT, (struct sockaddr *)&from);
     }
     return 0;
+}
+
+/* ---- nudging the phone ---- */
+
+static BOOL connected(void) { return link_state(NULL, 0) != LINK_NONE; }
+
+static void send_to(SOCKET udp, const BYTE *pkt, int len, struct in_addr ip)
+{
+    struct sockaddr_in to = { 0 };
+    to.sin_family = AF_INET;
+    to.sin_port = htons(CS_UDP_PORT);
+    to.sin_addr = ip;
+    sendto(udp, (const char *)pkt, len, 0, (struct sockaddr *)&to, sizeof to);
+}
+
+/*
+ * UDP "CSYH": "I'm here, reconnect now". To the phone's last address, and to every network this PC is on
+ * (its broadcast address and its gateway). When the PC is on the phone's hotspot, the gateway *is* the phone.
+ */
+static void send_hello(SOCKET udp)
+{
+    static const char label[] = "ClipSync hello";
+    BYTE pkt[38 + 64], mac[32];
+    struct in_addr ip;
+    LanAddr lan[8];
+    Config cfg;
+    config_snapshot(&cfg);
+    if (cfg.has_key && udp != INVALID_SOCKET) {
+        memcpy(pkt, "CSYH", 4);
+        crypto_random(pkt + 4, 16);
+        put_be16(pkt + 20, (unsigned)cfg.port);
+        Buf h[3] = { { label, sizeof label - 1 }, { pkt + 4, 16 }, { pkt + 20, 2 } };
+        crypto_hmac(cfg.key, h, 3, mac);
+        memcpy(pkt + 22, mac, 16);
+        int nl = 0;
+        char *name = utf8_from_wide(cfg.name, (int)wcslen(cfg.name), &nl);
+        nl = name ? utf8_clip(name, nl, 64) : 0;
+        if (nl) memcpy(pkt + 38, name, (size_t)nl);
+        free(name);
+        if (config_get_phone_ip(&ip)) send_to(udp, pkt, 38 + nl, ip);
+        int n = lan_addresses(lan, ARRAYSIZE(lan));
+        for (int i = 0; i < n; i++) {
+            if (lan[i].prefix >= 8 && lan[i].prefix <= 30) {
+                struct in_addr bcast = lan[i].ip;
+                bcast.s_addr |= htonl(0xFFFFFFFFu >> lan[i].prefix);
+                send_to(udp, pkt, 38 + nl, bcast);
+            }
+            if (lan[i].gateway.s_addr) send_to(udp, pkt, 38 + nl, lan[i].gateway);
+        }
+    }
+    SecureZeroMemory(cfg.key, sizeof cfg.key);
+}
+
+/* Bluetooth "wake": connecting to the phone's wake service is the whole signal; it then dials us. */
+static DWORD WINAPI wake_main(void *arg)
+{
+    UINT64 *addr = arg;
+    SOCKET s = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
+    if (s != INVALID_SOCKET) {
+        SOCKADDR_BTH a = { 0 };
+        a.addressFamily = AF_BTH;
+        a.btAddr = *addr;
+        a.serviceClassId = BT_WAKE_UUID;
+        connect(s, (struct sockaddr *)&a, sizeof a);
+        closesocket(s);
+    }
+    free(addr);
+    InterlockedExchange(&g_waking, 0);
+    return 0;
+}
+
+static void bt_wake_phone(void)
+{
+    UINT64 a = config_get_phone_bt();
+    if (!a || InterlockedCompareExchange(&g_waking, 1, 0)) return;
+    UINT64 *p = malloc(sizeof *p);
+    HANDLE t = NULL;
+    if (p) {
+        *p = a;
+        t = CreateThread(NULL, 0, wake_main, p, 0, NULL);
+    }
+    if (t) {
+        CloseHandle(t);
+    } else {
+        free(p);
+        InterlockedExchange(&g_waking, 0);
+    }
+}
+
+static VOID NETIOAPI_API_ on_ip_change(PVOID ctx, PMIB_IPINTERFACE_ROW row, MIB_NOTIFICATION_TYPE type)
+{
+    (void)ctx;
+    (void)row;
+    (void)type;
+    g_hello_at = GetTickCount64() + HELLO_DELAY_MS;
+    wake_net();
+}
+
+void link_nudge(void)
+{
+    g_nudge = 1;
+    wake_net();
 }
 
 static void bt_start(void)
@@ -450,17 +608,27 @@ static DWORD WINAPI net_main(void *unused)
         config_snapshot(&cfg);
         SecureZeroMemory(cfg.key, sizeof cfg.key);
 
-        SOCKET tcp = INVALID_SOCKET, udp = INVALID_SOCKET;
-        if (cfg.has_key) {
-            tcp = open_tcp(cfg.port);
-            if (tcp == INVALID_SOCKET) post_notify(L"Port %d is already in use. Pick another one in Settings.", cfg.port);
-            udp = open_udp();
-        }
-        BOOL want_bt = cfg.has_key && cfg.bluetooth;
+        /* Listen even before a phone is linked: link requests arrive the same way. Sessions need the key. */
+        SOCKET tcp = open_tcp(cfg.port), udp = open_udp();
+        if (tcp == INVALID_SOCKET) post_notify(L"Port %d is already in use. Pick another one in Settings.", cfg.port);
+        if (!connected()) send_hello(udp);
+        BOOL want_bt = cfg.bluetooth;
         ULONGLONG bt_retry = 0;
 
         while (!g_quit && !g_restart) {
             ULONGLONG now = GetTickCount64(), wait = ~0ULL;
+
+            if (InterlockedExchange(&g_nudge, 0)) {
+                send_hello(udp);
+                if (want_bt) bt_wake_phone();
+            }
+            ULONGLONG hello_at = g_hello_at;
+            if (hello_at && now >= hello_at) {
+                g_hello_at = 0;
+                send_hello(udp);
+            } else if (hello_at) {
+                wait = hello_at - now;
+            }
 
             Conn *c = acquire();
             if (c) {
@@ -473,7 +641,7 @@ static DWORD WINAPI net_main(void *unused)
                         c->last_send = now;
                         since_send = 0;
                     }
-                    wait = min(HEARTBEAT_MS - since_send, DEAD_MS - since_recv);
+                    wait = min(wait, min(HEARTBEAT_MS - since_send, DEAD_MS - since_recv));
                 }
                 release(c);
             }
@@ -486,6 +654,7 @@ static DWORD WINAPI net_main(void *unused)
                 if (!g_bt_thread && now >= bt_retry) {
                     bt_start();
                     if (!g_bt_thread) bt_retry = now + BT_RETRY_MS;
+                    else if (!connected()) bt_wake_phone(); /* startup, or Bluetooth just came back */
                 }
                 if (!g_bt_thread) wait = min(wait, bt_retry - now);
             }
@@ -718,6 +887,7 @@ void link_start(void)
 
     g_net_thread = CreateThread(NULL, 0, net_main, NULL, 0, NULL);
     g_send_thread = CreateThread(NULL, 0, send_main, NULL, 0, NULL);
+    NotifyIpInterfaceChange(AF_INET, on_ip_change, NULL, FALSE, &g_ip_notify);
 }
 
 void link_restart(void)

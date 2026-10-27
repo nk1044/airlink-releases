@@ -10,6 +10,7 @@
 static UINT cf_png, cf_exclude, cf_history, cf_cloud, cf_effect;
 static DWORD own_seq;   /* sequence number of our own last write: don't echo it back */
 static UINT64 last_hash; /* last item sent or received */
+static BOOL missed;      /* something was copied while the phone was away */
 
 void clip_init(void)
 {
@@ -60,10 +61,8 @@ static BOOL is_lone_url(const BYTE *s, size_t n)
     return TRUE;
 }
 
-void clip_changed(HWND hwnd)
+static void send_current(HWND hwnd)
 {
-    if (GetClipboardSequenceNumber() == own_seq) return;
-    if (g_cfg.paused || link_state(NULL, 0) == LINK_NONE) return;
     if (!open_clip(hwnd)) return;
 
     BYTE *data = NULL;
@@ -113,6 +112,35 @@ void clip_changed(HWND hwnd)
     last_hash = hash;
     if (dib) link_send_dib(data, len);
     else link_send_frame(type, data, len);
+}
+
+/*
+ * Runs CLIP_DELAY_MS after the last WM_CLIPBOARDUPDATE, not right away: many apps (PowerToys, anything .NET, Office)
+ * copy in several steps and reopen the clipboard to finish. Reading in between keeps it open under them and their
+ * copy fails ("OpenClipboard failed"). If someone still has it open, wait a little longer instead of competing.
+ */
+void clip_changed(HWND hwnd)
+{
+    static int busy_waits;
+    if (GetOpenClipboardWindow() && busy_waits++ < 20) {
+        SetTimer(hwnd, CLIP_TIMER, 50, NULL);
+        return;
+    }
+    busy_waits = 0;
+    if (GetClipboardSequenceNumber() == own_seq || g_cfg.paused) return;
+    if (link_state(NULL, 0) == LINK_NONE) {
+        missed = TRUE;
+        return;
+    }
+    missed = FALSE;
+    send_current(hwnd);
+}
+
+void clip_on_connected(HWND hwnd)
+{
+    if (!missed || g_cfg.paused) return;
+    missed = FALSE;
+    if (GetClipboardSequenceNumber() != own_seq) send_current(hwnd);
 }
 
 static void finish_set(UINT64 hash)

@@ -17,7 +17,14 @@
     <SelfContained>false</SelfContained>
     <PublishReadyToRun>true</PublishReadyToRun>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- WPF needs real cultures: a ComboBox opening resolves the UI language, and invariant mode
+         makes that throw ("Cannot find non-neutral culture related to 'en-us'"). Windows' own NLS
+         provides them without loading ICU. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Globalization.UseNls" Value="true" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CmfLink.Bluetooth\CmfLink.Bluetooth.csproj" />
   </ItemGroup>

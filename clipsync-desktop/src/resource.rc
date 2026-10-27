@@ -3,21 +3,34 @@
 
 1 24 "clipsync.manifest"
 
-IDD_SETTINGS DIALOGEX 0, 0, 250, 166
+IDD_SETTINGS DIALOGEX 0, 0, 260, 214
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "ClipSync Settings"
 FONT 9, "Segoe UI", 400, 0, 0x1
 BEGIN
-    LTEXT           "Password (must match the phone):", -1, 10, 10, 230, 9
-    EDITTEXT        IDC_PASSWORD, 10, 21, 230, 14, ES_PASSWORD | ES_AUTOHSCROLL
-    LTEXT           "Device name:", -1, 10, 43, 150, 9
-    EDITTEXT        IDC_NAME, 10, 54, 150, 14, ES_AUTOHSCROLL
-    LTEXT           "Port:", -1, 170, 43, 70, 9
-    EDITTEXT        IDC_PORT, 170, 54, 70, 14, ES_NUMBER
-    AUTOCHECKBOX    "Bluetooth fallback (text and images)", IDC_BT, 10, 76, 230, 12
-    LTEXT           "", IDC_ADDR, 10, 96, 230, 36
-    DEFPUSHBUTTON   "OK", IDOK, 136, 144, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 190, 144, 50, 14
+    LTEXT           "", IDC_LINKED, 10, 13, 150, 10
+    PUSHBUTTON      "Link a phone...", IDC_LINK, 166, 9, 84, 15
+    LTEXT           "Name of this PC (shown on the phone):", -1, 10, 38, 170, 9
+    EDITTEXT        IDC_NAME, 10, 49, 170, 14, ES_AUTOHSCROLL
+    LTEXT           "Port:", -1, 190, 38, 60, 9
+    EDITTEXT        IDC_PORT, 190, 49, 60, 14, ES_NUMBER
+    AUTOCHECKBOX    "Use Bluetooth when Wi-Fi can't connect", IDC_BT, 10, 76, 160, 12
+    PUSHBUTTON      "Bluetooth settings...", IDC_BTOPEN, 172, 74, 78, 15
+    LTEXT           "For Bluetooth, pair the phone with this PC once in Bluetooth settings. After that, ClipSync connects by itself over Wi-Fi or Bluetooth, whichever works.", -1, 10, 96, 240, 27
+    LTEXT           "", IDC_ADDR, 10, 132, 240, 45
+    DEFPUSHBUTTON   "OK", IDOK, 146, 192, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 200, 192, 50, 14
+END
+
+IDD_PAIR DIALOGEX 0, 0, 240, 168
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Link a phone - ClipSync"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "", IDC_PAIR_TEXT, 12, 10, 216, 70
+    CTEXT           "", IDC_PAIR_CODE, 12, 88, 216, 40, SS_CENTERIMAGE
+    DEFPUSHBUTTON   "Link", IDOK, 122, 144, 50, 14, WS_DISABLED
+    PUSHBUTTON      "Cancel", IDCANCEL, 178, 144, 50, 14
 END
 
 1 VERSIONINFO

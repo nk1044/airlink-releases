@@ -192,6 +192,28 @@ session = HMAC-SHA256(master, "ClipSync session" || client_random || server_rand
 ```
 Each side computes `master` once whenever the password changes and stores it (DPAPI on Windows, Android Keystore-wrapped on the phone).
 
+### Linking (once; replaces the password)
+The PC's "Link a phone" window puts it in linking mode. Over TCP or RFCOMM, the phone starts with `"CSYP"` instead
+of `"CSY1"`. A PC that isn't in linking mode hangs up.
+1. Phone → PC: `"CSYP"` + `commit (32)`, where `commit = SHA-256("ClipSync commit" || pk_phone || n_phone)`
+2. PC → phone: `pk_pc (64)`
+3. Phone → PC: `pk_phone (64)` + `n_phone (16)` + `name_len (1)` + phone name UTF-8 (≤ 64)
+4. Both compute:
+   - `Z` = ECDH P-256 shared secret (X coordinate, 32 bytes big-endian)
+   - `T = SHA-256("ClipSync pair" || pk_phone || pk_pc || n_phone)`
+   - `code = uint32 BE(T[0..4]) mod 1,000,000`, shown as `"123 456"` on both screens
+   - `key = HMAC-SHA256(Z, "ClipSync key" || T)`: the new `master`, kept for good
+5. The user compares the codes and clicks **Link** on the PC. PC → phone: `1` + `HMAC(key, "ClipSync paired")[0..16]` +
+   `name_len (1)` + PC name, or just `0` if the user declines.
+6. Phone → PC: `"OK"` + `HMAC(key, "ClipSync done")[0..16]`. Each side stores the key only after checking the other's proof.
+
+Public keys are `X || Y`, 32 bytes each, big-endian. The phone commits to its key before seeing the PC's, so an attacker
+in the middle can't steer both codes to match. The odds of a forged match are 1 in a million per attempt, and the
+user sees every attempt.
+
+"Who's ready to link?" over UDP port `47818`: phone → broadcast `"CSYQ"`; a PC in linking mode replies
+`"CSYR"` + `uint16 BE tcp_port` + PC name UTF-8.
+
 ### Handshake (plaintext)
 1. Client → server: `"CSY1"` (4 ASCII bytes) + `client_random` (32 bytes)
 2. Server → client: `"CSY1"` + `server_random` (32 bytes)
@@ -216,6 +238,7 @@ bytes[16]  tag
 | `0x01` | AUTH | device name, UTF-8, ≤ 64 bytes | ✅ |
 | `0x02` | PING | none | ✅ |
 | `0x03` | PONG | none | ✅ |
+| `0x04` | INFO | server → client, right after AUTH: list of `tag (1)`, `len (1)`, `value`. Tag `0x01`: the PC's Bluetooth address (6 bytes, most significant first) | ✅ |
 | `0x10` | TEXT | UTF-8 text, ≤ 1 MiB | ✅ |
 | `0x11` | IMAGE | encoded image bytes (PNG or JPEG; receiver detects format by magic bytes), ≤ 10 MiB on Wi-Fi, ≤ 2 MiB on Bluetooth | ✅ |
 | `0x20` | FILE_BEGIN | `uint64 BE size`, `uint16 BE name_len`, file name UTF-8 (base name only) | ❌ |
@@ -228,9 +251,20 @@ bytes[16]  tag
 - `FILE_*` frames received over Bluetooth are ignored.
 
 ### Heartbeat
-- The server sends `PING` after 240 seconds without sending anything. The client answers `PONG`.
-- Either side closes the link after 600 seconds without receiving any frame. The phone then reconnects.
+- The server sends `PING` after 120 seconds without sending anything. The client answers `PONG`.
+- Either side closes the link after 300 seconds without receiving any frame. The phone then reconnects.
 - The server drives the heartbeat so the phone never needs its own wake-up timer.
+- The client may also send `PING` (after sending an item, or after a hello/wake) to check that the link is alive.
+  If nothing comes back within a few seconds, it reconnects.
+
+### "I'm back" signals (PC → phone)
+The phone always dials, but the PC tells it to dial *now* when the PC starts, wakes from sleep, changes network,
+or gets Bluetooth back:
+- **Hello (Wi-Fi):** UDP to the phone's last known address, port `47818`:
+  `"CSYH"` + `nonce (16)` + `uint16 BE tcp_port` + `HMAC-SHA256(master, "ClipSync hello" || nonce || port)[0..16]` + PC name UTF-8.
+- **Wake (Bluetooth):** the PC opens an RFCOMM connection to the phone's service `c1b5d7a2-3f4e-4b8a-9d6c-2e7f1a0b5c94`
+  and closes it. The connection itself is the signal; no data is sent.
+- On either signal, the phone connects if it isn't connected, or pings the current link and reconnects if it's dead.
 
 ### Discovery (UDP, Wi-Fi only)
 - Client → broadcast (`255.255.255.255` and the subnet broadcast address) on port `47818`:

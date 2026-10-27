@@ -7,13 +7,26 @@ import android.os.Environment
 import android.provider.MediaStore
 import java.io.OutputStream
 
-/** Writes incoming FILE_* frames into Download/ClipSync through MediaStore (no storage permission needed). */
-class FileReceiver(private val context: Context) {
+/**
+ * Writes incoming FILE_* frames into Download/ClipSync through MediaStore (no storage permission needed).
+ * Reports (file number in this batch, percent of that file) whenever the percent changes.
+ */
+class FileReceiver(private val context: Context, private val onProgress: (file: Int, percent: Int) -> Unit) {
     private var uri: Uri? = null
     private var out: OutputStream? = null
     private var size = 0L
     private var got = 0L
     private var count = 0
+    private var index = 0
+    private var lastPercent = -1
+
+    private fun report() {
+        val percent = if (size > 0) (got * 100 / size).toInt() else 100
+        if (percent != lastPercent) {
+            lastPercent = percent
+            onProgress(index, percent)
+        }
+    }
 
     fun begin(f: Frame) {
         cancel()
@@ -33,7 +46,13 @@ class FileReceiver(private val context: Context) {
             ?: return
         uri = u
         out = runCatching { context.contentResolver.openOutputStream(u)?.buffered(Proto.CHUNK) }.getOrNull()
-        if (out == null) cancel()
+        if (out == null) {
+            cancel()
+            return
+        }
+        index++
+        lastPercent = -1
+        report()
     }
 
     fun data(f: Frame) {
@@ -45,6 +64,7 @@ class FileReceiver(private val context: Context) {
         try {
             o.write(f.buf, 1, f.len)
             got += f.len
+            report()
         } catch (e: Exception) {
             cancel()
         }
@@ -72,5 +92,8 @@ class FileReceiver(private val context: Context) {
     }
 
     /** Number of files completed in this batch; resets the count. */
-    fun done(): Int = count.also { count = 0 }
+    fun done(): Int = count.also {
+        count = 0
+        index = 0
+    }
 }

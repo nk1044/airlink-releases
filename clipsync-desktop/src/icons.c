@@ -1,5 +1,7 @@
 #include "icons.h"
 
+#define SS 4 /* supersampling: drawn at 4x, then averaged for smooth edges */
+
 static BOOL light_taskbar(void)
 {
     DWORD v = 0, size = sizeof v;
@@ -8,21 +10,39 @@ static BOOL light_taskbar(void)
     return v != 0;
 }
 
-static void fill(UINT32 *px, int s, int x0, int y0, int x1, int y1, UINT32 c)
+/* Is (x, y) inside the rounded rectangle? Coordinates in 16ths of the icon. */
+static BOOL in_rrect(float x, float y, float x0, float y0, float x1, float y1, float r)
 {
-    for (int y = max(y0, 0); y < min(y1, s); y++)
-        for (int x = max(x0, 0); x < min(x1, s); x++) px[y * s + x] = c;
+    if (x < x0 || x > x1 || y < y0 || y > y1) return FALSE;
+    float cx = x < x0 + r ? x0 + r : x > x1 - r ? x1 - r : x;
+    float cy = y < y0 + r ? y0 + r : y > y1 - r ? y1 - r : y;
+    return (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r;
 }
 
-static void frame(UINT32 *px, int s, int x0, int y0, int x1, int y1, int t, UINT32 c)
+/* Color of the clipboard glyph at (x, y), or 0 for transparent. */
+static UINT32 shade(int state, float x, float y, UINT32 fg, UINT32 accent)
 {
-    fill(px, s, x0, y0, x1, y0 + t, c);
-    fill(px, s, x0, y1 - t, x1, y1, c);
-    fill(px, s, x0, y0, x0 + t, y1, c);
-    fill(px, s, x1 - t, y0, x1, y1, c);
+    BOOL clip = in_rrect(x, y, 5.6f, 1.2f, 10.4f, 4.6f, 1.2f);
+    BOOL body = in_rrect(x, y, 2.8f, 2.8f, 13.2f, 15.2f, 2.0f);
+    BOOL inner = in_rrect(x, y, 4.2f, 4.2f, 11.8f, 13.8f, 0.8f);
+    switch (state) {
+    case ICON_WIFI:
+    case ICON_BT: {
+        UINT32 c = state == ICON_BT ? accent : fg;
+        BOOL line = x > 5.5f && x < 10.5f && ((y > 7.2f && y < 8.6f) || (y > 10.2f && y < 11.6f));
+        if (clip) return c;
+        if (body && !line && !(y < 4.9f && x > 5.0f && x < 11.0f)) return c; /* gap under the clip */
+        return 0;
+    }
+    case ICON_WAITING:
+        return clip || (body && !inner) ? (fg & 0x00FFFFFF) | 0xA0000000 : 0;
+    default: /* ICON_PAUSED */
+        if (clip || (body && !inner)) return fg;
+        if ((x > 5.9f && x < 7.3f && y > 7.0f && y < 12.6f) || (x > 8.7f && x < 10.1f && y > 7.0f && y < 12.6f)) return fg;
+        return 0;
+    }
 }
 
-/* A clipboard glyph: filled when connected (blue over Bluetooth), outlined while waiting, bars when paused. */
 HICON icon_make(int state)
 {
     int s = GetSystemMetrics(SM_CXSMICON);
@@ -37,36 +57,25 @@ HICON icon_make(int state)
     HBITMAP color = CreateDIBSection(NULL, &bi, DIB_RGB_COLORS, &bits, NULL, 0);
     if (!color) return NULL;
     UINT32 *px = bits;
-    memset(px, 0, (size_t)s * s * 4);
+    UINT32 fg = light_taskbar() ? 0xFF1F1F1F : 0xFFFFFFFF, accent = 0xFF3B82F6;
+    float unit = 16.0f / (float)(s * SS);
 
-    UINT32 fg = light_taskbar() ? 0xFF1F1F1F : 0xFFFFFFFF;
-    UINT32 dim = (fg & 0x00FFFFFF) | 0xB0000000;
-    int t = s >= 24 ? 2 : 1;
-#define U(v) ((v) * s / 16)
-    int bx0 = U(3), by0 = U(3), bx1 = U(13), by1 = U(15);
-
-    switch (state) {
-    case ICON_WIFI:
-    case ICON_BT: {
-        UINT32 c = state == ICON_BT ? 0xFF3B82F6 : fg;
-        fill(px, s, bx0, by0, bx1, by1, c);
-        fill(px, s, U(5), U(7), U(11), U(7) + t, 0); /* lines on the paper */
-        fill(px, s, U(5), U(10), U(11), U(10) + t, 0);
-        fill(px, s, U(6), U(1), U(10), U(4) + 1, c);
-        break;
+    for (int y = 0; y < s; y++) {
+        for (int x = 0; x < s; x++) {
+            UINT32 a = 0, r = 0, g = 0, b = 0;
+            for (int sy = 0; sy < SS; sy++) {
+                for (int sx = 0; sx < SS; sx++) {
+                    UINT32 c = shade(state, ((float)(x * SS + sx) + 0.5f) * unit, ((float)(y * SS + sy) + 0.5f) * unit, fg, accent);
+                    UINT32 ca = c >> 24;
+                    a += ca;
+                    r += ((c >> 16) & 0xFF) * ca;
+                    g += ((c >> 8) & 0xFF) * ca;
+                    b += (c & 0xFF) * ca;
+                }
+            }
+            px[y * s + x] = a ? (a / (SS * SS)) << 24 | (r / a) << 16 | (g / a) << 8 | (b / a) : 0;
+        }
     }
-    case ICON_WAITING:
-        frame(px, s, bx0, by0, bx1, by1, t, dim);
-        fill(px, s, U(6), U(1), U(10), U(4) + 1, dim);
-        break;
-    case ICON_PAUSED:
-        frame(px, s, bx0, by0, bx1, by1, t, fg);
-        fill(px, s, U(6), U(1), U(10), U(4) + 1, fg);
-        fill(px, s, U(6), U(7), U(7) + t, U(13), fg);
-        fill(px, s, U(9), U(7), U(10) - 1 + t, U(13), fg);
-        break;
-    }
-#undef U
 
     BYTE *mask_bits = calloc((size_t)((s + 15) / 16) * 2 * s, 1);
     HBITMAP mask = CreateBitmap(s, s, 1, 1, mask_bits);

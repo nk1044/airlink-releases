@@ -110,14 +110,42 @@ void files_rx_abort(RxState *rx)
     files_rx_done(rx); /* keep whatever finished before the link dropped */
 }
 
+static BOOL sendto_path(WCHAR lnk[MAX_PATH])
+{
+    WCHAR *dir;
+    if (FAILED(SHGetKnownFolderPath(&FOLDERID_SendTo, 0, NULL, &dir))) return FALSE;
+    swprintf(lnk, MAX_PATH, L"%s\\Phone (ClipSync).lnk", dir);
+    CoTaskMemFree(dir);
+    return TRUE;
+}
+
+void files_remove_sendto(void)
+{
+    WCHAR lnk[MAX_PATH];
+    if (sendto_path(lnk)) DeleteFileW(lnk);
+}
+
+void files_delete_self_on_exit(void)
+{
+    WCHAR exe[MAX_PATH], sys[MAX_PATH], cmd[MAX_PATH * 3];
+    GetModuleFileNameW(NULL, exe, MAX_PATH);
+    GetSystemDirectoryW(sys, MAX_PATH);
+    /* ping is the classic portable "wait ~2 seconds" so the exe is no longer in use */
+    swprintf(cmd, ARRAYSIZE(cmd), L"\"%s\\cmd.exe\" /c ping -n 3 127.0.0.1 >nul & del /f /q \"%s\"", sys, exe);
+    STARTUPINFOW si = { 0 };
+    PROCESS_INFORMATION pi;
+    si.cb = sizeof si;
+    if (CreateProcessW(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+}
+
 /* Adds "Phone (ClipSync)" to Explorer's Send to menu; it runs "clipsync.exe --send <paths>". */
 void files_install_sendto(void)
 {
-    WCHAR *dir, lnk[MAX_PATH], exe[MAX_PATH];
-    if (FAILED(SHGetKnownFolderPath(&FOLDERID_SendTo, 0, NULL, &dir))) return;
-    swprintf(lnk, MAX_PATH, L"%s\\Phone (ClipSync).lnk", dir);
-    CoTaskMemFree(dir);
-    if (exists(lnk)) return;
+    WCHAR lnk[MAX_PATH], exe[MAX_PATH];
+    if (!sendto_path(lnk) || exists(lnk)) return;
 
     GetModuleFileNameW(NULL, exe, MAX_PATH);
     HRESULT init = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);

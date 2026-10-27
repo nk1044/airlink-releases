@@ -21,10 +21,13 @@ object Proto {
     const val TCP_PORT = 47817
     const val UDP_PORT = 47818
     val BT_UUID: UUID = UUID.fromString("c1b5d7a2-3f4e-4b8a-9d6c-2e7f1a0b5c93")
+    /** The phone's own RFCOMM service: the PC connects to it to say "dial me now". */
+    val BT_WAKE_UUID: UUID = UUID.fromString("c1b5d7a2-3f4e-4b8a-9d6c-2e7f1a0b5c94")
 
     const val T_AUTH = 0x01
     const val T_PING = 0x02
     const val T_PONG = 0x03
+    const val T_INFO = 0x04
     const val T_TEXT = 0x10
     const val T_IMAGE = 0x11
     const val T_FILE_BEGIN = 0x20
@@ -45,6 +48,12 @@ object Proto {
     private val rng = SecureRandom()
 
     fun random(n: Int) = ByteArray(n).also { rng.nextBytes(it) }
+
+    fun sha256(vararg parts: ByteArray): ByteArray {
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        for (p in parts) md.update(p)
+        return md.digest()
+    }
 
     fun hmac(key: ByteArray, vararg parts: ByteArray): ByteArray {
         val mac = Mac.getInstance("HmacSHA256")
@@ -124,6 +133,14 @@ class Conn(rawIn: InputStream, rawOut: OutputStream, private val closer: Closeab
         private set
     @Volatile var closed = false
         private set
+    /** Over this phone's own hotspot/tethering rather than a Wi-Fi network. */
+    @Volatile var viaHotspot = false
+    @Volatile var bytesSent = 0L
+        private set
+    @Volatile var bytesReceived = 0L
+        private set
+    @Volatile var framesReceived = 0L
+        private set
 
     /** Throws WrongPasswordException when the PC uses a different password. */
     fun handshake(master: ByteArray, name: String) {
@@ -159,6 +176,7 @@ class Conn(rawIn: InputStream, rawOut: OutputStream, private val closer: Closeab
         output.write(Proto.be32(ct.size))
         output.write(ct)
         output.flush()
+        bytesSent += 4L + ct.size
     }
 
     fun recv(): Frame {
@@ -173,6 +191,8 @@ class Conn(rawIn: InputStream, rawOut: OutputStream, private val closer: Closeab
             throw WrongPasswordException()
         }
         lastRecv = SystemClock.elapsedRealtime()
+        bytesReceived += 4L + len
+        framesReceived++
         return Frame(pt[0].toInt() and 0xFF, pt)
     }
 

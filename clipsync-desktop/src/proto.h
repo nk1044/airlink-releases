@@ -4,7 +4,7 @@
 
 /* Wire protocol v1; see plan.md. Must match the Android Proto.kt. */
 enum {
-    T_AUTH = 0x01, T_PING = 0x02, T_PONG = 0x03,
+    T_AUTH = 0x01, T_PING = 0x02, T_PONG = 0x03, T_INFO = 0x04,
     T_TEXT = 0x10, T_IMAGE = 0x11,
     T_FILE_BEGIN = 0x20, T_FILE_DATA = 0x21, T_FILE_END = 0x22, T_FILE_CANCEL = 0x23, T_FILES_DONE = 0x24,
 };
@@ -35,8 +35,13 @@ typedef struct {
     BYTE *buf; /* free() this */
 } Frame;
 
-/* Returns NULL on failure without closing s; *why is HS_IO or HS_AUTH (wrong password). */
+/*
+ * Returns NULL on failure without closing s; *why is HS_IO or HS_AUTH (wrong key).
+ * Server side: the caller has already read the client's 4-byte "CSY1" (it tells a session from a "CSYP" link request).
+ */
 Conn *proto_handshake(SOCKET s, int kind, const BYTE master[32], BOOL server, const char *name, int *why);
+BOOL proto_send_all(SOCKET s, const void *buf, size_t n);
+BOOL proto_recv_all(SOCKET s, void *buf, size_t n);
 BOOL proto_send(Conn *c, BYTE type, const void *a, size_t alen, const void *b, size_t blen);
 int proto_recv(Conn *c, Frame *f);
 void proto_free(Conn *c);

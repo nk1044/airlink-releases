@@ -1,7 +1,7 @@
 #include "proto.h"
 #include "crypto.h"
 
-static BOOL send_all(SOCKET s, const void *buf, size_t n)
+BOOL proto_send_all(SOCKET s, const void *buf, size_t n)
 {
     const char *p = buf;
     while (n) {
@@ -13,7 +13,7 @@ static BOOL send_all(SOCKET s, const void *buf, size_t n)
     return TRUE;
 }
 
-static BOOL recv_all(SOCKET s, void *buf, size_t n)
+BOOL proto_recv_all(SOCKET s, void *buf, size_t n)
 {
     char *p = buf;
     while (n) {
@@ -54,7 +54,7 @@ BOOL proto_send(Conn *c, BYTE type, const void *a, size_t alen, const void *b, s
     if (blen) memcpy(buf + 5 + alen, b, blen);
     BYTE nonce[12];
     make_nonce(nonce, c->ds, c->ns++);
-    BOOL ok = crypto_seal(c->ks, nonce, buf + 4, (ULONG)pt, buf + 4 + pt) && send_all(c->s, buf, 4 + pt + 16);
+    BOOL ok = crypto_seal(c->ks, nonce, buf + 4, (ULONG)pt, buf + 4 + pt) && proto_send_all(c->s, buf, 4 + pt + 16);
     free(buf);
     return ok;
 }
@@ -62,12 +62,12 @@ BOOL proto_send(Conn *c, BYTE type, const void *a, size_t alen, const void *b, s
 int proto_recv(Conn *c, Frame *f)
 {
     BYTE hdr[4], nonce[12];
-    if (!recv_all(c->s, hdr, 4)) return RX_IO;
+    if (!proto_recv_all(c->s, hdr, 4)) return RX_IO;
     UINT32 len = get_be32(hdr);
     if (len < 17 || len > FRAME_MAX) return RX_IO;
     BYTE *buf = malloc(len);
     if (!buf) return RX_IO;
-    if (!recv_all(c->s, buf, len)) {
+    if (!proto_recv_all(c->s, buf, len)) {
         free(buf);
         return RX_IO;
     }
@@ -89,9 +89,12 @@ Conn *proto_handshake(SOCKET s, int kind, const BYTE master[32], BOOL server, co
     *why = HS_IO;
     memcpy(mine, "CSY1", 4);
     crypto_random(mine + 4, 32);
-    if (server ? !recv_all(s, theirs, 36) || !send_all(s, mine, 36)
-               : !send_all(s, mine, 36) || !recv_all(s, theirs, 36))
+    if (server) {
+        memcpy(theirs, "CSY1", 4); /* already read by the caller */
+        if (!proto_recv_all(s, theirs + 4, 32) || !proto_send_all(s, mine, 36)) return NULL;
+    } else if (!proto_send_all(s, mine, 36) || !proto_recv_all(s, theirs, 36)) {
         return NULL;
+    }
     if (memcmp(theirs, "CSY1", 4)) return NULL;
 
     static const char label[] = "ClipSync session";
