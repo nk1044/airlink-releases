@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.ClipSync" parent="@android:style/Theme.DeviceDefault.DayNight" />
+
+    <!-- Used by the tile and share activities: nothing is drawn, they finish immediately. -->
+    <style name="Theme.ClipSync.Invisible" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+</resources>

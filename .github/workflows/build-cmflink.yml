@@ -1,0 +1,48 @@
+name: CMF Link (Windows)
+
+# Tests and publishes the tray app on every change to cmflink/, and uploads
+# CmfLink-win-x64.zip as a build artifact. The release workflow calls this with a version.
+on:
+  push:
+    branches: [main]
+    paths: ["cmflink/**", "!cmflink/**/*.md", ".github/workflows/build-cmflink.yml"]
+  pull_request:
+    paths: ["cmflink/**", "!cmflink/**/*.md", ".github/workflows/build-cmflink.yml"]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      ref:
+        description: Git ref to build (the release tag); defaults to the triggering ref
+        type: string
+        required: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: cmflink
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Test
+        run: dotnet test tests/CmfLink.Tests -c Release
+      - name: Publish
+        run: |
+          $version = "${{ inputs.version }}"
+          if (-not $version) { $version = "0.0.0-ci.${{ github.run_number }}" }
+          dotnet publish src/CmfLink.App -c Release -o dist/CmfLink "-p:Version=$version"
+          Compress-Archive -Path dist/CmfLink -DestinationPath dist/CmfLink-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmflink
+          path: cmflink/dist/CmfLink-win-x64.zip
+          if-no-files-found: error

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tray icon, flyout and settings. No Bluetooth logic lives here. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>CmfLink</AssemblyName>
+    <RootNamespace>CmfLink.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\CmfLink.ico</ApplicationIcon>
+    <!-- ThemeMode (the Windows 11 Fluent theme) is marked experimental in WPF. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <TieredPGO>true</TieredPGO>
+    <!-- Precompiled, so launching and connecting don't pay for the JIT (less CPU and less memory). -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- WPF needs real cultures: a ComboBox opening resolves the UI language, and invariant mode
+         makes that throw ("Cannot find non-neutral culture related to 'en-us'"). Windows' own NLS
+         provides them without loading ICU. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Globalization.UseNls" Value="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CmfLink.Bluetooth\CmfLink.Bluetooth.csproj" />
+  </ItemGroup>
+</Project>

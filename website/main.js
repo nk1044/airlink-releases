@@ -18,15 +18,24 @@
     reveal.forEach((el) => observer.observe(el));
   }
 
-  // The download links always point at the latest release's DMG; this only adds the version.
-  fetch("https://api.github.com/repos/nk1044/airlink/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+  // The download links always point at the latest release's files; this only adds versions and sizes.
+  fetch("https://api.github.com/repos/nk1044/airlink-releases/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
     .then((response) => (response.ok ? response.json() : null))
     .then((release) => {
       if (!release || !release.tag_name) return;
-      const dmg = (release.assets || []).find((asset) => asset.name.endsWith(".dmg"));
-      const size = dmg ? ` · ${(dmg.size / 1048576).toFixed(1)} MB` : "";
-      const label = document.getElementById("release-version");
-      if (label) label.textContent = `Version ${release.tag_name.replace(/^v/, "")}${size} · Free and open source`;
+      const version = release.tag_name.replace(/^v/, "");
+      const assets = release.assets || [];
+      const sizeOf = (name) => {
+        const asset = assets.find((a) => a.name === name);
+        return asset ? `${(asset.size / 1048576).toFixed(1)} MB` : "";
+      };
+      // <span data-asset="AirLink.dmg" data-suffix=" · …"> becomes "Version 1.2.0 · 1.6 MB · …".
+      document.querySelectorAll("[data-asset]").forEach((el) => {
+        const size = sizeOf(el.dataset.asset);
+        if (size) el.textContent = `Version ${version} · ${size}${el.dataset.suffix || ""}`;
+      });
+      document.querySelectorAll("[data-version]").forEach((el) => { el.textContent = version; });
+      document.querySelectorAll("[data-version-wrap]").forEach((el) => { el.hidden = false; });
     })
     .catch(() => {});
 })();

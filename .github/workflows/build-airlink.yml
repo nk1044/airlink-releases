@@ -1,0 +1,50 @@
+name: AirLink (macOS)
+
+# Builds and tests on every change to airlink-mac/. The release workflow calls this with a
+# version, which also builds the universal app and AirLink.dmg.
+on:
+  push:
+    branches: [main]
+    paths: ["airlink-mac/**", "!airlink-mac/**/*.md", ".github/workflows/build-airlink.yml"]
+  pull_request:
+    paths: ["airlink-mac/**", "!airlink-mac/**/*.md", ".github/workflows/build-airlink.yml"]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      ref:
+        description: Git ref to build (the release tag); defaults to the triggering ref
+        type: string
+        required: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: airlink-mac
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - run: swift --version
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+      - name: Build universal app
+        if: inputs.version
+        run: UNIVERSAL=1 VERSION="${{ inputs.version }}" BUILD_NUMBER="${{ github.run_number }}" ./scripts/build.sh
+      - name: Make DMG
+        if: inputs.version
+        run: ./scripts/make-dmg.sh
+      - uses: actions/upload-artifact@v4
+        if: inputs.version
+        with:
+          name: airlink
+          path: |
+            airlink-mac/dist/AirLink.dmg
+            airlink-mac/dist/AirLink.dmg.sha256
+          if-no-files-found: error

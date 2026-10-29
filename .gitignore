@@ -1,3 +1,28 @@
+# ClipSync desktop (build.bat output: clipsync.exe, testclient.exe, resource.o)
+clipsync-desktop/build/
+clipsync-desktop/dist/
+
+# ClipSync Android (Gradle and Android Studio)
+clipsync-android/.gradle/
+clipsync-android/.kotlin/
+clipsync-android/build/
+clipsync-android/app/build/
+clipsync-android/local.properties
+clipsync-android/captures/
+clipsync-android/.externalNativeBuild/
+clipsync-android/.cxx/
+
+# Signing keys
+*.jks
+*.keystore
+
+# IDE and OS files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
 # macOS
 .DS_Store
 ._*
@@ -14,9 +39,9 @@ xcuserdata/
 *.xcodeproj/
 *.xcworkspace/
 
-# Build products (made by app/scripts/build.sh and make-dmg.sh)
-app/build/
-app/dist/
+# Build products (made by airlink-mac/scripts/build.sh and make-dmg.sh)
+airlink-mac/build/
+airlink-mac/dist/
 *.dmg
 *.dmg.sha256
 

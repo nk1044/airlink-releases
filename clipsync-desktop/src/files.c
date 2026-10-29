@@ -1,0 +1,189 @@
+#include "files.h"
+#include "transfer.h"
+#include <shlobj.h>
+#include <stdio.h>
+#include <wctype.h>
+
+BOOL files_download_dir(WCHAR *out, size_t n)
+{
+    WCHAR *dl;
+    if (FAILED(SHGetKnownFolderPath(&FOLDERID_Downloads, KF_FLAG_CREATE, NULL, &dl))) return FALSE;
+    swprintf(out, n, L"%s\\ClipSync", dl);
+    CoTaskMemFree(dl);
+    CreateDirectoryW(out, NULL);
+    return TRUE;
+}
+
+/* Turns a name from the phone into a safe base name: no paths, no reserved characters or device names. */
+static void sanitize(WCHAR *name)
+{
+    static const WCHAR *reserved[] = { L"CON", L"PRN", L"AUX", L"NUL", L"COM", L"LPT" };
+    for (WCHAR *p = name; *p; p++)
+        if (*p < 32 || wcschr(L"\\/:*?\"<>|", *p)) *p = L'_';
+    size_t n = wcslen(name);
+    while (n && (name[n - 1] == L'.' || name[n - 1] == L' ')) name[--n] = 0;
+    for (size_t i = 0; i < ARRAYSIZE(reserved); i++) {
+        size_t rl = wcslen(reserved[i]);
+        if (!_wcsnicmp(name, reserved[i], rl) &&
+            (name[rl] == 0 || name[rl] == L'.' || (rl == 3 && iswdigit(name[rl]))))
+            name[0] = L'_';
+    }
+    if (!name[0]) wcscpy(name, L"file");
+}
+
+static BOOL exists(const WCHAR *path) { return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES; }
+
+void files_rx_begin(RxState *rx, const BYTE *p, size_t n, const char *peer)
+{
+    WCHAR dir[MAX_PATH], base[256], stem[256];
+    ULARGE_INTEGER free_bytes;
+    files_rx_cancel(rx);
+    if (n < 10 || 10 + get_be16(p + 8) > n || !files_download_dir(dir, MAX_PATH)) return;
+    rx->size = get_be64(p);
+    WCHAR *name = wide_from_utf8((const char *)p + 10, (int)get_be16(p + 8));
+    if (!name) return;
+    wcsncpy(base, name, 200);
+    base[200] = 0;
+    free(name);
+    sanitize(base);
+
+    if (!tx_active(TX_RECV)) {
+        tx_start(TX_RECV, 0, 0);
+        tx_connected(TX_RECV, peer);
+    }
+    tx_file(TX_RECV, ++rx->index, base, rx->size);
+    /* Leave some room: a full disk breaks far more than this one transfer. The file's data is then ignored. */
+    if (GetDiskFreeSpaceExW(dir, &free_bytes, NULL, NULL) && free_bytes.QuadPart < rx->size + (64ULL << 20)) {
+        post_notify(L"Not enough free disk space for \"%s\". It was skipped.", base);
+        return;
+    }
+
+    /* name.ext, name (1).ext, name (2).ext, ... */
+    WCHAR *dot = wcsrchr(base, L'.');
+    const WCHAR *ext = dot && dot != base ? dot : L"";
+    wcsncpy(stem, base, (size_t)(ext[0] ? dot - base : 255));
+    stem[ext[0] ? dot - base : 255] = 0;
+    swprintf(rx->final, ARRAYSIZE(rx->final), L"%s\\%s", dir, base);
+    for (int i = 1; exists(rx->final) && i < 10000; i++)
+        swprintf(rx->final, ARRAYSIZE(rx->final), L"%s\\%s (%d)%s", dir, stem, i, ext);
+    swprintf(rx->part, ARRAYSIZE(rx->part), L"%s.part", rx->final);
+
+    rx->got = 0;
+    rx->h = CreateFileW(rx->part, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (rx->h == INVALID_HANDLE_VALUE) rx->h = NULL;
+}
+
+void files_rx_data(RxState *rx, const BYTE *p, size_t n)
+{
+    DWORD w;
+    if (tx_active(TX_RECV)) tx_add(TX_RECV, n); /* skipped files still move the bar */
+    if (!rx->h) return;
+    if (rx->got + n > rx->size || !WriteFile(rx->h, p, (DWORD)n, &w, NULL) || w != n) {
+        files_rx_cancel(rx);
+        return;
+    }
+    rx->got += n;
+}
+
+void files_rx_end(RxState *rx)
+{
+    if (!rx->h) return;
+    CloseHandle(rx->h);
+    rx->h = NULL;
+    if (rx->got == rx->size && MoveFileExW(rx->part, rx->final, 0))
+        file_list_add(&rx->done, _wcsdup(rx->final));
+    else
+        DeleteFileW(rx->part);
+}
+
+void files_rx_cancel(RxState *rx)
+{
+    if (!rx->h) return;
+    CloseHandle(rx->h);
+    rx->h = NULL;
+    DeleteFileW(rx->part);
+}
+
+/* Hands the received files to the UI thread (clipboard, "Open folder"). */
+static void post_done(RxState *rx)
+{
+    if (!rx->done.n) return;
+    FileList *l = malloc(sizeof *l);
+    if (l) {
+        *l = rx->done;
+        memset(&rx->done, 0, sizeof rx->done);
+        if (PostMessageW(g_hwnd, WM_APP_RECV_FILES, 0, (LPARAM)l)) return;
+        rx->done = *l;
+        free(l);
+    }
+    file_list_free(&rx->done);
+}
+
+void files_rx_done(RxState *rx)
+{
+    if (tx_active(TX_RECV)) tx_finish(TX_RECV, TXR_OK, rx->done.n);
+    rx->index = 0;
+    post_done(rx);
+}
+
+void files_rx_abort(RxState *rx)
+{
+    files_rx_cancel(rx);
+    if (tx_active(TX_RECV)) tx_finish(TX_RECV, TXR_FAILED, rx->done.n);
+    rx->index = 0;
+    post_done(rx); /* keep whatever finished before the link dropped */
+}
+
+static BOOL sendto_path(WCHAR lnk[MAX_PATH])
+{
+    WCHAR *dir;
+    if (FAILED(SHGetKnownFolderPath(&FOLDERID_SendTo, 0, NULL, &dir))) return FALSE;
+    swprintf(lnk, MAX_PATH, L"%s\\Phone (ClipSync).lnk", dir);
+    CoTaskMemFree(dir);
+    return TRUE;
+}
+
+void files_remove_sendto(void)
+{
+    WCHAR lnk[MAX_PATH];
+    if (sendto_path(lnk)) DeleteFileW(lnk);
+}
+
+void files_delete_self_on_exit(void)
+{
+    WCHAR exe[MAX_PATH], sys[MAX_PATH], cmd[MAX_PATH * 3];
+    GetModuleFileNameW(NULL, exe, MAX_PATH);
+    GetSystemDirectoryW(sys, MAX_PATH);
+    /* ping is the classic portable "wait ~2 seconds" so the exe is no longer in use */
+    swprintf(cmd, ARRAYSIZE(cmd), L"\"%s\\cmd.exe\" /c ping -n 3 127.0.0.1 >nul & del /f /q \"%s\"", sys, exe);
+    STARTUPINFOW si = { 0 };
+    PROCESS_INFORMATION pi;
+    si.cb = sizeof si;
+    if (CreateProcessW(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+}
+
+/* Adds "Phone (ClipSync)" to Explorer's Send to menu; it runs "clipsync.exe --send <paths>". */
+void files_install_sendto(void)
+{
+    WCHAR lnk[MAX_PATH], exe[MAX_PATH];
+    if (!sendto_path(lnk) || exists(lnk)) return;
+
+    GetModuleFileNameW(NULL, exe, MAX_PATH);
+    HRESULT init = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    IShellLinkW *sl;
+    if (SUCCEEDED(CoCreateInstance(&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, &IID_IShellLinkW, (void **)&sl))) {
+        IPersistFile *pf;
+        sl->lpVtbl->SetPath(sl, exe);
+        sl->lpVtbl->SetArguments(sl, L"--send");
+        sl->lpVtbl->SetDescription(sl, L"Send files to your phone with ClipSync");
+        if (SUCCEEDED(sl->lpVtbl->QueryInterface(sl, &IID_IPersistFile, (void **)&pf))) {
+            pf->lpVtbl->Save(pf, lnk, TRUE);
+            pf->lpVtbl->Release(pf);
+        }
+        sl->lpVtbl->Release(sl);
+    }
+    if (SUCCEEDED(init)) CoUninitialize();
+}

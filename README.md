@@ -1,206 +1,128 @@
 <p align="center">
-  <img src="website/assets/icon.png" width="128" height="128" alt="AirLink icon">
+  <img src="website/assets/icon.png" width="96" height="96" alt="AirLink icon">
 </p>
 
-<h1 align="center">AirLink</h1>
+<h1 align="center">AirLink, CMF Link &amp; ClipSync</h1>
 
 <p align="center">
-  <b>Your realme buds, right in the menu bar.</b><br>
-  Battery for each bud and the case, and one-click noise control, natively on macOS.
-</p>
-
-<p align="center">
-  <a href="https://github.com/nk1044/airlink/releases/latest/download/AirLink.dmg"><b>Download AirLink.dmg</b></a> ·
-  <a href="https://nk1044.github.io/airlink/">Website</a> ·
-  <a href="app/PROTOCOL.md">Protocol notes</a>
+  <b>Small, native apps that put your earbuds and your phone one click away.</b><br>
+  No accounts, no cloud, no dependencies.
 </p>
 
 <p align="center">
-  <a href="https://github.com/nk1044/airlink/actions/workflows/ci.yml"><img src="https://github.com/nk1044/airlink/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/nk1044/airlink/releases/latest"><img src="https://img.shields.io/github/v/release/nk1044/airlink?label=release" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/macOS-14%2B-black" alt="macOS 14+">
-  <img src="https://img.shields.io/badge/Swift-6-orange" alt="Swift 6">
+  <a href="https://nk1044.github.io/airlink-releases/">Website</a> ·
+  <a href="https://github.com/nk1044/airlink-releases/releases/latest">Latest release</a>
 </p>
 
 <p align="center">
-  <img src="website/assets/panel-light.png" width="300" alt="AirLink in Light Mode">
-  &nbsp;&nbsp;
-  <img src="website/assets/panel-dark.png" width="300" alt="AirLink in Dark Mode">
+  <a href="https://github.com/nk1044/airlink-releases/actions/workflows/build-airlink.yml"><img src="https://github.com/nk1044/airlink-releases/actions/workflows/build-airlink.yml/badge.svg" alt="AirLink"></a>
+  <a href="https://github.com/nk1044/airlink-releases/actions/workflows/build-cmflink.yml"><img src="https://github.com/nk1044/airlink-releases/actions/workflows/build-cmflink.yml/badge.svg" alt="CMF Link"></a>
+  <a href="https://github.com/nk1044/airlink-releases/actions/workflows/build-clipsync-desktop.yml"><img src="https://github.com/nk1044/airlink-releases/actions/workflows/build-clipsync-desktop.yml/badge.svg" alt="ClipSync Windows"></a>
+  <a href="https://github.com/nk1044/airlink-releases/actions/workflows/build-clipsync-android.yml"><img src="https://github.com/nk1044/airlink-releases/actions/workflows/build-clipsync-android.yml/badge.svg" alt="ClipSync Android"></a>
+  <a href="https://github.com/nk1044/airlink-releases/releases/latest"><img src="https://img.shields.io/github/v/release/nk1044/airlink-releases?label=release" alt="Latest release"></a>
 </p>
 
 ---
 
-AirLink is a small native menu bar app for the **realme Buds Air 6 Pro**. It stays out of the way: the icon only appears while your buds are connected to the Mac, and it disappears when they leave.
+## The apps
 
-## Features
+| App | What it does | Platform | Download |
+|---|---|---|---|
+| [**AirLink**](airlink-mac) | realme Buds Air 6 Pro in the menu bar: battery for each bud and the case, one-click noise control | macOS 14+, Apple silicon and Intel | [AirLink.dmg](https://github.com/nk1044/airlink-releases/releases/latest/download/AirLink.dmg) |
+| [**CMF Link**](cmflink) | CMF Buds 2a in the tray: battery, noise control, EQ, Ultra Bass, gestures, find my buds | Windows 10 2004+, x64 | [CmfLink-win-x64.zip](https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip) |
+| [**ClipSync**](clipsync-desktop) for Windows | Syncs the clipboard (text and images) with your phone and sends files, over Wi-Fi or Bluetooth | Windows 10+ | [ClipSync.exe](https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.exe) |
+| [**ClipSync**](clipsync-android) for Android | The phone side: a Quick Settings tile and a "Send to PC" share target | Android 13+ | [ClipSync.apk](https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.apk) |
 
-- **Battery at a glance.** Left, right and case, as rings that are green, orange at 20 % or below, and red at 10 % or below, with a bolt while charging. AirLink never guesses a value: a bud the buds aren't reporting shows "—". The case keeps its last reported level, since the buds stop reporting it whenever the lid is closed.
-- **Noise control in one click.** Noise Cancellation, Transparency or Off. The selection slides over and settles only once the buds confirm. If the buds refuse (ANC needs both buds in, the other modes need at least one), it springs back and tells you why. Long-press changes made on the buds show up too.
-- **Optional battery ring in the menu bar.** It shows the lower bud's level as a ring around the icon.
-- **Feels native.** The panel drops down like the system's Battery and Wi-Fi panels, follows Light and Dark Mode, works with VoiceOver, and respects Reduce Motion.
-- **Featherweight.** 0.0 % CPU when idle and about 13 MB of memory while connected. No polling, no timers and no scanning. Launches at login (you can turn that off).
+Every release is built from this repository by GitHub Actions and ships all four apps, plus `SHA256SUMS.txt` with a checksum for each file. None of the apps is signed by Apple or Microsoft, so the first launch asks for confirmation; each app's section below says how.
 
-## Install
+## AirLink (macOS)
 
-1. [Download **AirLink.dmg**](https://github.com/nk1044/airlink/releases/latest/download/AirLink.dmg), open it, and drag **AirLink** to **Applications**.
-2. Open AirLink. Because it's free and not notarized by Apple, macOS asks first: click **Done**, then go to **System Settings › Privacy & Security** and click **Open Anyway**. In Terminal, this does the same:
-   ```sh
-   xattr -dr com.apple.quarantine /Applications/AirLink.app
-   ```
-3. Allow Bluetooth when asked, then connect your buds to the Mac. The icon appears in the menu bar.
+A native menu bar app for the **realme Buds Air 6 Pro**. The icon only appears while your buds are connected to the Mac. It shows battery for each bud and the case as rings, and switches between Noise Cancellation, Transparency and Off in one click. It uses about 13 MB of memory and 0.0 % CPU while idle.
 
-**Requirements:** macOS 14 or later, on Apple silicon or Intel, with realme Buds Air 6 Pro paired and connected to the Mac.
+**Install:** download [AirLink.dmg](https://github.com/nk1044/airlink-releases/releases/latest/download/AirLink.dmg), drag AirLink to Applications, and open it. macOS asks first because the app isn't notarized: click **Done**, then **System Settings › Privacy & Security › Open Anyway**.
 
-Every release is built from this repository by GitHub Actions ([release workflow](.github/workflows/release.yml)). Each release also ships a SHA-256 checksum.
+Full docs, including build steps, the probe tool and adding other buds: [airlink-mac/README.md](airlink-mac/README.md) · Protocol notes: [airlink-mac/PROTOCOL.md](airlink-mac/PROTOCOL.md)
 
-## Supported devices
+## CMF Link (Windows)
 
-| Model | Status |
-|---|---|
-| realme Buds Air 6 Pro | ✅ Tested on hardware (firmware 1.1.0.75) |
-| Other realme / OPPO / OnePlus buds | Same protocol family. Each needs a profile; see [Adding another model](#adding-another-model). |
+The Windows counterpart of AirLink, for the **CMF Buds 2a**: battery, noise control, equalizer and custom EQ, Ultra Bass, low-latency mode, gesture remapping, find my buds and dual-connection management, all from a Windows 11-style tray flyout. It hands the buds' controls back to the Nothing X app on your phone when you're not using it.
 
-## Build from source
+**Install:** install the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64), then download [CmfLink-win-x64.zip](https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip), unzip it anywhere and run `CmfLink.exe`.
 
-You need the Xcode Command Line Tools (Swift 6); full Xcode isn't required. The app has no third-party dependencies.
+Full docs: [cmflink/README.md](cmflink/README.md) · Protocol notes: [cmflink/PROTOCOL.md](cmflink/PROTOCOL.md)
 
-```sh
-git clone https://github.com/nk1044/airlink.git
-cd airlink/app
-./scripts/setup-signing.sh      # once: a local code-signing identity
-./scripts/build.sh --install    # build, sign, copy to /Applications and launch
-swift test                      # unit tests
-```
+## ClipSync (Windows + Android)
 
-**Why a signing identity?** macOS ties the Bluetooth permission to the app's signature. An ad-hoc signature changes on every build, so macOS would ask again after each rebuild. `setup-signing.sh` creates a self-signed certificate in its own keychain (`~/Library/Keychains/airlink-signing.keychain-db`, with a random password in `~/.config/airlink/`). It doesn't touch your login keychain, your trust settings or your keychain search list. To remove it:
+Copy on the PC, paste on the phone, and the other way round. ClipSync keeps the clipboard in sync between a Windows PC and an Android phone, including images, and sends files both ways. Everything stays on your local network: it uses Wi-Fi, falls back to Bluetooth, and encrypts every message with a key the two devices agree on when you link them. There's no account and no cloud.
 
-```sh
-security delete-keychain ~/Library/Keychains/airlink-signing.keychain-db && rm -r ~/.config/airlink
-```
+- **Windows:** a single ~90 KB `ClipSync.exe` with no installer and no runtime. It lives in the tray, reacts to clipboard events instead of polling, and adds **Send to › Phone (ClipSync)** in Explorer.
+- **Android:** no AndroidX and no notifications. Tap the **ClipSync** Quick Settings tile to send the phone's clipboard, or use **Share › Send to PC** for images and files.
 
-`build.sh` also understands `UNIVERSAL=1` (Apple silicon and Intel), `VERSION=` and `BUILD_NUMBER=`. `scripts/make-dmg.sh` packages `build/AirLink.app` into `dist/AirLink.dmg`.
+**Install:**
+1. On the PC, download [ClipSync.exe](https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.exe) and run it. SmartScreen may ask first: click **More info › Run anyway**. Allow it through the firewall on private networks.
+2. On the phone, download [ClipSync.apk](https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.apk) and install it.
+3. On the PC, right-click the ClipSync icon near the clock and choose **Link a phone**. In the phone app, tap **Link with PC**, check that both show the same code, and click **Link** on the PC. Both need to be on the same Wi-Fi the first time.
+
+Design notes: [clipsync-desktop/plan.md](clipsync-desktop/plan.md) · [clipsync-android/plan.md](clipsync-android/plan.md)
 
 ## Repository layout
 
 ```
-app/                    the macOS app (Swift package)
-  Sources/
-    BudsProtocol/       frame codec, commands, reply/push parsers (no Apple frameworks)
-    BudsCore/           device profiles, Transport protocol, BudsSession actor, DeviceStore
-    BudsBluetooth/      IOBluetooth RFCOMM transport, connection lifecycle, channel lock
-    AirLinkApp/         status item, panel window and SwiftUI views (no Bluetooth logic)
-    airlink-probe/      command-line protocol probe
-  Tests/                protocol tests with frames captured from real buds; store and UI tests
-  Packaging/            Info.plist and app icon
-  scripts/              build, sign, DMG, icon and probe scripts
-  PROTOCOL.md           the control protocol, with sources and hardware confirmation
-website/                the project website (static HTML/CSS/JS, deployed to GitHub Pages)
-.github/workflows/      CI, release (DMG) and website deployment
+airlink-mac/          AirLink: macOS menu bar app (Swift package)
+cmflink/              CMF Link: Windows tray app (.NET 10, WPF)
+clipsync-desktop/     ClipSync for Windows (C17, Win32, MinGW-w64)
+clipsync-android/     ClipSync for Android (Kotlin, framework APIs only)
+website/              the project website (static HTML/CSS/JS, deployed to GitHub Pages)
+.github/workflows/    one build workflow per app, the release and the website deployment
 ```
 
-## How it works
+## Building from source
 
-realme, OPPO and OnePlus buds share a control protocol over classic Bluetooth RFCOMM, the one their phone apps speak. AirLink implements it independently. [PROTOCOL.md](app/PROTOCOL.md) documents every fact used, where it came from, and what has been confirmed on real hardware.
+| App | Needs | Build |
+|---|---|---|
+| AirLink | Xcode Command Line Tools (Swift 6) | `cd airlink-mac && swift build && swift test` (see [its README](airlink-mac/README.md#build-from-source) for signing and the DMG) |
+| CMF Link | [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) | `cd cmflink && dotnet test && dotnet publish src/CmfLink.App -c Release -o dist/CmfLink` |
+| ClipSync (Windows) | MinGW-w64 gcc from [MSYS2](https://www.msys2.org/) UCRT64 on `PATH` | `cd clipsync-desktop && build.bat` → `build\clipsync.exe` |
+| ClipSync (Android) | JDK 17 and the Android SDK (Android Studio has both), Gradle 8.14 | Open `clipsync-android` in Android Studio, or `gradle assembleRelease` → `app/build/outputs/apk/release/` |
 
-**Lifecycle.** At login AirLink is dormant: it holds only an IOBluetooth connect notification, and runs one check for buds that are already connected. When matching buds connect for audio, AirLink does four things:
-1. Shows its menu bar item.
-2. Waits a few seconds for macOS to finish setting up audio.
-3. Opens the control channel and reads battery, wear and noise state once.
-4. Arms a disconnect notification.
+## CI and releases
 
-From then on, every update is a push from the buds; nothing polls. On disconnect it closes the panel, releases everything, removes the item, and goes back to dormant. It never connects to buds on its own and never scans.
+Each app has its own workflow, which runs only when files in that app's folder change (edits to Markdown docs don't count) and uploads the build as an artifact on the run's page:
 
-**Architecture.** The protocol layer is pure Swift and unit-tested against frames captured from real buds. `BudsSession` is an actor that keeps one request in flight, with a 2.5 s timeout. `DeviceStore` is the observable UI state. The app layer is AppKit for the status item and panel placement, with SwiftUI for the panel's content. The panel's view tree exists only while it's open.
+| Workflow | Runs on | Produces |
+|---|---|---|
+| [build-airlink.yml](.github/workflows/build-airlink.yml) | macOS | build and tests (the DMG on release) |
+| [build-cmflink.yml](.github/workflows/build-cmflink.yml) | Windows | tests, `CmfLink-win-x64.zip` |
+| [build-clipsync-desktop.yml](.github/workflows/build-clipsync-desktop.yml) | Windows (MSYS2) | `ClipSync.exe` |
+| [build-clipsync-android.yml](.github/workflows/build-clipsync-android.yml) | Linux | `ClipSync.apk` |
+| [pages.yml](.github/workflows/pages.yml) | Linux | deploys `website/` to GitHub Pages |
 
-## Adding another model
-
-Each model is one file in [`app/Sources/BudsCore/Profiles/`](app/Sources/BudsCore/Profiles). Copy `RealmeBudsAir6Pro.swift`, adjust it, and add the new type to `DeviceRegistry.all`:
-
-```swift
-public struct RealmeBudsAir7: DeviceProfile {
-    public init() {}
-    public let id = "realme-buds-air-7"
-    public let displayName = "realme Buds Air 7"
-    public let namePrefixes = ["realme Buds Air7"]          // spaces and case are ignored
-    public let productIDs = ["064812"]                        // from `airlink-probe info`
-    public let identifyingService: ServiceUUID? = .opoVendor
-    public let controlServices: [ServiceUUID] = [.opoVendor, .serialPort]
-    public let noiseModes: [NoiseMode] = [.noiseCancellation, .transparency, .off]
-
-    public func noiseValue(for mode: NoiseMode) -> UInt8 { … }   // byte sent with command 0x0404
-    public func noiseMode(fromValue value: UInt8) -> NoiseMode? { … }
-}
-```
-
-Find the values with the probe rather than guessing. Then add the captured frames as tests next to [`CapturedFramesTests.swift`](app/Tests/BudsProtocolTests/CapturedFramesTests.swift).
-
-## The probe
-
-`airlink-probe` talks to your buds from Terminal and prints every frame in and out. Quit AirLink first: only one process can hold the buds' control channel, and the probe tells you if AirLink has it.
-
-```sh
-cd app
-swift build -c release --product airlink-probe
-.build/release/airlink-probe list                 # paired devices, SDP services, RFCOMM channels
-.build/release/airlink-probe info                 # product id, firmware, wear, battery, noise
-.build/release/airlink-probe noise set anc        # off | transparency | anc | 0xNN
-.build/release/airlink-probe monitor 30           # print pushes (long-press a bud)
-./scripts/probe-session.sh                        # guided run, saved to probe-output.txt
-```
-
-The probe never opens the buds' firmware-update channel.
-
-## Performance
-
-Measured on Apple silicon, macOS 27, with the release build. Memory is the physical footprint from `footprint`, which matches Activity Monitor.
-
-| State | Memory | CPU | Idle wakeups |
-|---|---|---|---|
-| Connected and idle | 13 MB | 0.0 % | ≈ 0.2 / s |
-| Dormant (buds away) | ≤ 15 MB | 0.0 % | 0 |
-
-To check it on your own Mac:
-
-```sh
-footprint $(pgrep -x AirLink) | grep phys_footprint
-top -l 6 -s 5 -pid $(pgrep -x AirLink) -stats pid,cpu,mem,threads,idlew,power
-```
-
-## Releasing
+To release, push a version tag:
 
 ```sh
 git tag v1.1.0 && git push origin v1.1.0
 ```
 
-The [release workflow](.github/workflows/release.yml) runs the tests and builds a universal app stamped with the version. It then packages `AirLink.dmg` and publishes a GitHub Release. The website's download button always points at the latest release. Changes under `website/` deploy to GitHub Pages automatically.
+The [release workflow](.github/workflows/release.yml) rebuilds only the apps whose folder changed since the previous `v*` release, stamped with the new version. It copies the other apps' files over from that release unchanged, and publishes all four together as one GitHub Release. The release notes say which apps were updated. Because every release carries every app, the `releases/latest/download/<file>` links on the website and in this README always work. To rebuild everything anyway, run the workflow by hand (**Actions › Release › Run workflow**) with **build_all** checked.
 
-## Troubleshooting
+**Android signing.** Android only installs an update over an app signed with the same key. To give every release the same key, add these repository secrets (**Settings › Secrets and variables › Actions**):
 
-| Symptom | Fix |
+| Secret | Value |
 |---|---|
-| No icon after connecting the buds | Make sure AirLink is running (`pgrep -l AirLink`) and allowed under **System Settings › Privacy & Security › Bluetooth**. The buds must be connected **to this Mac** for audio. |
-| "Couldn't reach the buds" | Click **Try Again**. AirLink restarts itself to reset macOS's Bluetooth session, which is the only fix when macOS gets stuck. |
-| "airlink-probe is using the buds" | Quit the probe, or any other app talking to the buds, then click **Try Again**. |
-| Noise control springs back | The buds refuse mode changes unless they're worn: ANC needs both buds, the other modes need one. |
-| macOS asks for Bluetooth after every build | Run `scripts/setup-signing.sh` once, then rebuild. |
-| "Launch at Login" won't stay on | Approve AirLink under **System Settings › General › Login Items**. |
+| `CLIPSYNC_KEYSTORE_BASE64` | the keystore file, base64-encoded |
+| `CLIPSYNC_KEYSTORE_PASSWORD` | the keystore password |
+| `CLIPSYNC_KEY_ALIAS` | the key's alias |
+| `CLIPSYNC_KEY_PASSWORD` | the key's password |
 
-**Logs.** AirLink logs under the subsystem `io.github.nk1044.airlink`. Hex frame logging is built in but off by default:
+Create a keystore once and keep it safe; losing it means users have to uninstall before updating:
 
 ```sh
-defaults write io.github.nk1044.airlink LogFrames -bool YES     # then reconnect the buds
-log stream --level debug --predicate 'subsystem == "io.github.nk1044.airlink"'
+keytool -genkeypair -v -keystore clipsync.jks -alias clipsync -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 clipsync.jks    # the value for CLIPSYNC_KEYSTORE_BASE64 (macOS: base64 -i clipsync.jks)
 ```
 
-## Credits
-
-Protocol facts were learned from these open-source projects and re-implemented independently. No code was copied.
-- [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge), for its realme Buds Air 6 Pro support.
-- [OneBuds](https://github.com/himanshudev28/OneBuds)
-- [realme-buds-mac](https://github.com/kalki-kgp/realme-buds-mac)
-
-Details are in [PROTOCOL.md](app/PROTOCOL.md).
+Without the secrets the APK is still built, signed with a throwaway debug key, and the workflow prints a warning.
 
 ---
 
-AirLink is an independent project, not affiliated with or endorsed by realme, OPPO or Apple. realme is a trademark of its owner. AirPods, Mac and macOS are trademarks of Apple Inc.
+These are independent projects, not affiliated with or endorsed by realme, OPPO, Nothing, CMF, Apple, Microsoft or Google. All trademarks belong to their owners.
