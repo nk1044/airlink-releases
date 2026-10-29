@@ -38,9 +38,9 @@ xcuserdata/
 *.xcodeproj/
 *.xcworkspace/
 
-# Build products (made by app/scripts/build.sh and make-dmg.sh)
-app/build/
-app/dist/
+# Build products (made by airlink-mac/scripts/build.sh and make-dmg.sh)
+airlink-mac/build/
+airlink-mac/dist/
 *.dmg
 *.dmg.sha256
 

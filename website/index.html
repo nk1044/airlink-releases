@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AirLink — your realme buds, in the menu bar</title>
-  <meta name="description" content="AirLink is a tiny native macOS menu bar app for realme Buds Air 6 Pro: battery for each bud and the case, and one-click noise control. Invisible until your buds connect.">
+  <meta name="description" content="AirLink is a tiny native macOS menu bar app for realme Buds Air 6 Pro: battery for each bud and the case, and one-click noise control. Invisible until your buds connect. Also: CMF Link for CMF Buds 2a on Windows, and ClipSync, a clipboard sync between Windows and Android.">
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta property="og:title" content="AirLink">
@@ -25,10 +25,11 @@
         <a href="#features">Features</a>
         <a href="#performance">Performance</a>
         <a href="#install">Install</a>
+        <a href="#apps">Apps</a>
         <a href="#faq">FAQ</a>
-        <a href="https://github.com/nk1044/airlink">GitHub</a>
+        <a href="https://github.com/nk1044/airlink-releases">GitHub</a>
       </nav>
-      <a class="button button-small download-link" href="https://github.com/nk1044/airlink/releases/latest/download/AirLink.dmg">Download</a>
+      <a class="button button-small download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/AirLink.dmg">Download</a>
     </div>
   </header>
 
@@ -42,7 +43,7 @@
         <h1 class="intro" style="--d:160ms">Your buds.<br>Right in the menu bar.</h1>
         <p class="hero-lede intro" style="--d:240ms">Battery for each bud and the case, and one‑click noise control for realme&nbsp;Buds&nbsp;Air&nbsp;6&nbsp;Pro. Native, featherlight, and out of sight until your buds connect.</p>
         <div class="cta intro" style="--d:320ms">
-          <a class="button download-link" href="https://github.com/nk1044/airlink/releases/latest/download/AirLink.dmg">
+          <a class="button download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/AirLink.dmg">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Download for Mac
           </a>
@@ -139,28 +140,73 @@
         <div class="reveal"><span class="num">2</span><h3>AirLink wakes up</h3><p>It opens the buds' control channel, the same one realme Link uses, and reads battery, wear and noise state once.</p></div>
         <div class="reveal"><span class="num">3</span><h3>Everything stays in sync</h3><p>Changes arrive as pushes from the buds. Disconnect, and AirLink lets go and goes quiet.</p></div>
       </div>
-      <p class="center reveal"><a class="link-arrow" href="https://github.com/nk1044/airlink/blob/main/app/PROTOCOL.md">Read the protocol notes, confirmed on real hardware</a></p>
+      <p class="center reveal"><a class="link-arrow" href="https://github.com/nk1044/airlink-releases/blob/main/airlink-mac/PROTOCOL.md">Read the protocol notes, confirmed on real hardware</a></p>
     </section>
 
     <!-- Install -->
     <section class="section install" id="install">
       <h2 class="reveal">Install in a minute.</h2>
       <ol class="install-steps">
-        <li class="reveal"><h3>Download</h3><p><a class="download-link" href="https://github.com/nk1044/airlink/releases/latest/download/AirLink.dmg">AirLink.dmg</a>, open it, and drag AirLink to Applications.</p></li>
+        <li class="reveal"><h3>Download</h3><p><a class="download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/AirLink.dmg">AirLink.dmg</a>, open it, and drag AirLink to Applications.</p></li>
         <li class="reveal"><h3>Open it once</h3><p>AirLink is free and isn't notarized by Apple, so macOS asks first. Open it, click <b>Done</b>, then go to <b>System Settings › Privacy &amp; Security</b> and click <b>Open Anyway</b>.</p></li>
         <li class="reveal"><h3>Allow Bluetooth</h3><p>AirLink needs Bluetooth to talk to your buds. Connect them, and the icon appears in your menu bar.</p></li>
       </ol>
       <p class="fineprint reveal">Prefer Terminal? <code>xattr -dr com.apple.quarantine /Applications/AirLink.app</code> does the same as step 2.</p>
       <div class="cta reveal">
-        <a class="button download-link" href="https://github.com/nk1044/airlink/releases/latest/download/AirLink.dmg">Download AirLink</a>
+        <a class="button download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/AirLink.dmg">Download AirLink</a>
       </div>
+    </section>
+
+    <!-- The other apps -->
+    <section class="section apps" id="apps">
+      <h2 class="reveal">Also for Windows and Android.</h2>
+      <p class="lede narrow reveal">Same idea on every device: tiny, native, local only, and out of sight until you need it. All free and open source.</p>
+      <div class="app-grid">
+        <article class="app-card reveal">
+          <img class="app-icon" src="assets/icon.png" alt="" width="72" height="72">
+          <h3>AirLink</h3>
+          <p class="platform">macOS 14+ · Apple silicon and Intel</p>
+          <p>realme Buds Air 6 Pro in the menu bar: battery for each bud and the case, and one‑click noise control.</p>
+          <div class="app-actions">
+            <a class="button download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/AirLink.dmg">Download for Mac</a>
+          </div>
+          <p class="app-meta" data-asset="AirLink.dmg"></p>
+          <a class="link-arrow" href="#features">Learn more</a>
+        </article>
+        <article class="app-card reveal">
+          <img class="app-icon" src="assets/cmflink-icon.png" alt="" width="72" height="72">
+          <h3>CMF Link</h3>
+          <p class="platform">Windows 10 2004+ · x64</p>
+          <p>CMF Buds 2a in the tray: battery, noise control, EQ, Ultra Bass, gestures and find my buds, in a Windows 11‑style flyout. Hands the controls back to Nothing X when you're done.</p>
+          <div class="app-actions">
+            <a class="button download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip">Download for Windows</a>
+          </div>
+          <p class="app-meta" data-asset="CmfLink-win-x64.zip"></p>
+          <p class="app-meta">Needs the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 Desktop Runtime</a></p>
+          <a class="link-arrow" href="https://github.com/nk1044/airlink-releases/tree/main/cmflink#readme">Learn more</a>
+        </article>
+        <article class="app-card reveal">
+          <img class="app-icon" src="assets/clipsync-icon.svg" alt="" width="72" height="72">
+          <h3>ClipSync</h3>
+          <p class="platform">Windows 10+ · Android 13+</p>
+          <p>Copy on the PC, paste on the phone, and back. Text, images and files over Wi‑Fi or Bluetooth, end‑to‑end encrypted, with no cloud and no account.</p>
+          <div class="app-actions">
+            <a class="button download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.exe">Windows</a>
+            <a class="button button-secondary download-link" href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.apk">Android</a>
+          </div>
+          <p class="app-meta" data-asset="ClipSync.exe"></p>
+          <p class="app-meta">Install both, then choose <b>Link a phone</b> from the PC's tray icon</p>
+          <a class="link-arrow" href="https://github.com/nk1044/airlink-releases#clipsync-windows--android">Learn more</a>
+        </article>
+      </div>
+      <p class="fineprint reveal">Every release is built on GitHub Actions and ships all four downloads, with <a href="https://github.com/nk1044/airlink-releases/releases/latest/download/SHA256SUMS.txt">SHA‑256 checksums</a> · <a class="link-arrow" href="https://github.com/nk1044/airlink-releases/releases">All releases</a></p>
     </section>
 
     <!-- Devices -->
     <section class="section devices">
       <h2 class="reveal">Made for realme Buds Air 6 Pro.</h2>
       <p class="lede narrow reveal">Tested on real hardware, firmware 1.1.0.75. Other realme, OPPO and OnePlus buds speak a similar protocol. Adding one is a single profile file, and the built‑in probe tool helps you find the values.</p>
-      <p class="center reveal"><a class="link-arrow" href="https://github.com/nk1044/airlink#adding-another-model">Add your buds</a></p>
+      <p class="center reveal"><a class="link-arrow" href="https://github.com/nk1044/airlink-releases/tree/main/airlink-mac#adding-another-model">Add your buds</a></p>
     </section>
 
     <!-- FAQ -->
@@ -171,13 +217,14 @@
       <details class="reveal"><summary>Will it drain my Mac's battery?</summary><p>No. While your buds are away, AirLink only waits for a Bluetooth connect notification. While they're connected, it sits at 0.0 % CPU and reacts only to messages from the buds.</p></details>
       <details class="reveal"><summary>Why does noise cancellation sometimes refuse?</summary><p>The buds themselves only allow noise cancellation with both buds in your ears, and the other modes with at least one. AirLink tells you which one it is.</p></details>
       <details class="reveal"><summary>Can I use it alongside realme Link on my phone?</summary><p>Yes. AirLink only talks to your buds through the Mac's own connection.</p></details>
+      <details class="reveal"><summary>Why does Windows warn me about CMF Link or ClipSync?</summary><p>SmartScreen warns about apps that aren't signed with a paid code‑signing certificate. Click <b>More info › Run anyway</b> once. Like AirLink, both are open source and every release is built by GitHub Actions.</p></details>
     </section>
   </main>
 
   <footer class="footer">
     <div class="footer-inner">
-      <p><img src="assets/icon.png" alt="" width="20" height="20"> AirLink · <a href="https://github.com/nk1044/airlink">GitHub</a> · <a href="https://github.com/nk1044/airlink/releases">Releases</a> · <a href="https://github.com/nk1044/airlink/issues">Report an issue</a></p>
-      <p class="legal">AirLink is an independent project, not affiliated with or endorsed by realme, OPPO or Apple. realme is a trademark of its owner. Mac and macOS are trademarks of Apple Inc.</p>
+      <p><img src="assets/icon.png" alt="" width="20" height="20"> AirLink · <a href="https://github.com/nk1044/airlink-releases">GitHub</a> · <a href="https://github.com/nk1044/airlink-releases/releases">Releases</a> · <a href="https://github.com/nk1044/airlink-releases/issues">Report an issue</a></p>
+      <p class="legal">AirLink, CMF Link and ClipSync are independent projects, not affiliated with or endorsed by realme, OPPO, Nothing, CMF, Apple, Microsoft or Google. realme, Nothing and CMF are trademarks of their owners. Mac and macOS are trademarks of Apple Inc. Windows is a trademark of Microsoft. Android is a trademark of Google LLC.</p>
     </div>
   </footer>
 

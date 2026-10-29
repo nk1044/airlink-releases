@@ -1,0 +1,43 @@
+name: ClipSync (Windows)
+
+# Builds clipsync.exe with MinGW-w64 gcc (MSYS2 UCRT64, as build.bat expects) on every change
+# to clipsync-desktop/, and uploads ClipSync.exe as a build artifact.
+on:
+  push:
+    branches: [main]
+    paths: ["clipsync-desktop/**", ".github/workflows/build-clipsync-desktop.yml"]
+  pull_request:
+    paths: ["clipsync-desktop/**", ".github/workflows/build-clipsync-desktop.yml"]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: false
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Put gcc and windres on PATH
+        shell: pwsh
+        run: Add-Content $env:GITHUB_PATH "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin"
+      - name: Build
+        shell: cmd
+        working-directory: clipsync-desktop
+        run: |
+          gcc --version
+          call build.bat
+          copy build\clipsync.exe build\ClipSync.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clipsync-desktop
+          path: clipsync-desktop/build/ClipSync.exe
+          if-no-files-found: error

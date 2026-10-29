@@ -1,7 +1,8 @@
 name: Release
 
-# Push a tag like v1.2.0 to build a universal AirLink.dmg and publish it as a GitHub Release.
-# The website's download button points at releases/latest/download/AirLink.dmg.
+# Push a tag like v1.2.0 to build every app and publish them together as one GitHub Release.
+# The website's and README's download links point at releases/latest/download/<file>, which
+# works for every app because each release carries all of them.
 on:
   push:
     tags: ["v*"]
@@ -10,29 +11,63 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: macos-26
-    defaults:
-      run:
-        working-directory: app
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  airlink:
+    needs: version
+    uses: ./.github/workflows/build-airlink.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  cmflink:
+    needs: version
+    uses: ./.github/workflows/build-cmflink.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  clipsync-desktop:
+    needs: version
+    uses: ./.github/workflows/build-clipsync-desktop.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  clipsync-android:
+    needs: version
+    uses: ./.github/workflows/build-clipsync-android.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+    secrets: inherit
+
+  publish:
+    needs: [version, airlink, cmflink, clipsync-desktop, clipsync-android]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: swift --version
-      - name: Test
-        run: swift test
-      - name: Build universal app
-        run: UNIVERSAL=1 VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER="${{ github.run_number }}" ./scripts/build.sh
-      - name: Make DMG
-        run: ./scripts/make-dmg.sh
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum AirLink.dmg CmfLink-win-x64.zip ClipSync.exe ClipSync.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          sed "s/{{VERSION}}/$version/g" ../.github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          sed "s/{{VERSION}}/$VERSION/g" .github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          files=(dist/AirLink.dmg dist/AirLink.dmg.sha256 dist/CmfLink-win-x64.zip dist/ClipSync.exe dist/ClipSync.apk dist/SHA256SUMS.txt)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/AirLink.dmg dist/AirLink.dmg.sha256 --clobber
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/AirLink.dmg dist/AirLink.dmg.sha256 \
-              --title "AirLink $version" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+              --title "AirLink, CMF Link & ClipSync $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
           fi

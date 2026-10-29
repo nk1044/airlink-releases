@@ -1,0 +1,76 @@
+name: ClipSync (Android)
+
+# Builds the release APK on every change to clipsync-android/, and uploads ClipSync.apk as a
+# build artifact. The release workflow calls this with a version.
+#
+# Signing: with the CLIPSYNC_KEYSTORE_BASE64, CLIPSYNC_KEYSTORE_PASSWORD, CLIPSYNC_KEY_ALIAS and
+# CLIPSYNC_KEY_PASSWORD secrets set, every build is signed with the same key, so updates install
+# over the previous version. Without them it falls back to the runner's throwaway debug key.
+on:
+  push:
+    branches: [main]
+    paths: ["clipsync-android/**", ".github/workflows/build-clipsync-android.yml"]
+  pull_request:
+    paths: ["clipsync-android/**", ".github/workflows/build-clipsync-android.yml"]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+    secrets:
+      CLIPSYNC_KEYSTORE_BASE64:
+        required: false
+      CLIPSYNC_KEYSTORE_PASSWORD:
+        required: false
+      CLIPSYNC_KEY_ALIAS:
+        required: false
+      CLIPSYNC_KEY_PASSWORD:
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clipsync-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.14.3
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CLIPSYNC_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/clipsync.jks"
+            echo "CLIPSYNC_KEYSTORE=$RUNNER_TEMP/clipsync.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No CLIPSYNC_KEYSTORE_BASE64 secret: signing with a throwaway debug key, so this APK won't install over a previous one."
+          fi
+      - name: Build APK
+        env:
+          CLIPSYNC_KEYSTORE_PASSWORD: ${{ secrets.CLIPSYNC_KEYSTORE_PASSWORD }}
+          CLIPSYNC_KEY_ALIAS: ${{ secrets.CLIPSYNC_KEY_ALIAS }}
+          CLIPSYNC_KEY_PASSWORD: ${{ secrets.CLIPSYNC_KEY_PASSWORD }}
+        run: |
+          # versionCode comes from the version (1.2.3 -> 10203), so each release installs over the last.
+          version="${{ inputs.version }}"
+          if [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            code=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))
+          else
+            code=1
+            version="0.0.0-ci.${{ github.run_number }}"
+          fi
+          gradle assembleRelease --no-daemon -PversionCode="$code" -PversionName="$version"
+          cp app/build/outputs/apk/release/app-release.apk ClipSync.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clipsync-android
+          path: clipsync-android/ClipSync.apk
+          if-no-files-found: error

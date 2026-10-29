@@ -2,7 +2,7 @@
 
 **Your CMF Buds 2a, right in the Windows tray.** It shows the battery for each bud and the case, and gives you noise control, EQ, Ultra Bass, gestures and more, all from the notification area.
 
-CMF Link is a small tray app for the **CMF Buds 2a**, a Windows counterpart of [AirLink](../airlink-main) for macOS. It stays out of the way: the icon only appears while your buds are connected to the PC, and it disappears when they leave.
+CMF Link is a small tray app for the **CMF Buds 2a**, a Windows counterpart of [AirLink](../airlink-mac) for macOS. It stays out of the way: the icon only appears while your buds are connected to the PC, and it disappears when they leave.
 
 ## Features
 
@@ -27,7 +27,7 @@ CMF Link is a small tray app for the **CMF Buds 2a**, a Windows counterpart of [
 ## Install
 
 1. Install the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64), if you don't have it.
-2. Build CMF Link (below), or copy a `dist\CmfLink` folder you already built, anywhere you like. Then run `CmfLink.exe`.
+2. [Download **CmfLink-win-x64.zip**](https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip), unzip it anywhere you like, and run `CmfLink.exe`. It isn't code-signed, so SmartScreen may ask first: click **More info › Run anyway**. (Or build it yourself, below.)
 3. Connect your buds to the PC for audio. The icon appears in the tray.
 
 **The icon isn't on the taskbar?** Windows 11 puts new tray icons in the **^** overflow. To keep it visible, drag it onto the taskbar, or go to **Settings › Personalization › Taskbar › Other system tray icons** and turn on **CMF Link**.
@@ -137,7 +137,7 @@ Protocol facts were learned from these open-source projects and re-implemented i
 - [EarA-linux](https://github.com/oneydef/EarA-linux)
 - [cmf-control](https://github.com/JScoder4005/cmf-control)
 
-The design follows [AirLink](https://github.com/nk1044/airlink) by nk1044. Details are in [PROTOCOL.md](PROTOCOL.md).
+The design follows [AirLink](../airlink-mac) by nk1044. Details are in [PROTOCOL.md](PROTOCOL.md).
 
 ---
 
