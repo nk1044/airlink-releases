@@ -24,7 +24,7 @@ typedef struct Conn {
     BCRYPT_KEY_HANDLE ks, kr;       /* same session key; one handle per direction/thread */
     UINT64 ns, nr;                  /* nonce counters */
     BYTE ds, dr;                    /* nonce direction bytes */
-    volatile ULONGLONG last_send, last_recv;
+    volatile ULONGLONG last_send, last_recv, last_ping;
     char peer[65];
 } Conn;
 

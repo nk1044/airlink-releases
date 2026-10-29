@@ -6,10 +6,11 @@ typedef struct {
     HANDLE h;
     WCHAR part[1024], final[1024];
     UINT64 size, got;
+    int index;      /* files started in this batch (shown as "file 2") */
     FileList done;
 } RxState;
 
-void files_rx_begin(RxState *rx, const BYTE *p, size_t n);
+void files_rx_begin(RxState *rx, const BYTE *p, size_t n, const char *peer);
 void files_rx_data(RxState *rx, const BYTE *p, size_t n);
 void files_rx_end(RxState *rx);
 void files_rx_cancel(RxState *rx);

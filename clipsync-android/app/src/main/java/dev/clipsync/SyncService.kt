@@ -28,6 +28,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
@@ -39,6 +40,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.service.quicksettings.TileService
+import android.text.format.Formatter
 import android.util.Log
 import android.widget.Toast
 import java.io.ByteArrayOutputStream
@@ -170,7 +172,9 @@ class SyncService : Service() {
 
     private lateinit var prefs: Prefs
     private lateinit var connectivity: ConnectivityManager
-    private lateinit var wakeLock: PowerManager.WakeLock
+    private lateinit var wakeLock: PowerManager.WakeLock     // short: while frames arrive
+    private lateinit var transferLock: PowerManager.WakeLock // long: while this phone sends files
+    private lateinit var wifiLock: WifiManager.WifiLock      // only during file transfers: no Wi-Fi power-save throttling
     private val main = Handler(Looper.getMainLooper())
 
     @Volatile private var running = true
@@ -211,7 +215,7 @@ class SyncService : Service() {
         override fun onLost(network: Network) {
             if (wifi == network) {
                 wifi = null
-                conn?.takeIf { it.kind == Proto.LINK_WIFI && !it.viaHotspot }?.close()
+                conn?.takeIf { it.kind == Proto.LINK_WIFI && !it.viaHotspot }?.close("Wi-Fi network lost")
             }
             linkSignal.release()
         }
@@ -226,7 +230,7 @@ class SyncService : Service() {
                         linkSignal.release()
                     }
                     BluetoothAdapter.STATE_TURNING_OFF -> {
-                        conn?.takeIf { it.kind == Proto.LINK_BT }?.close()
+                        conn?.takeIf { it.kind == Proto.LINK_BT }?.close("Bluetooth turned off")
                         runCatching { wakeServer?.close() }
                     }
                 }
@@ -248,8 +252,12 @@ class SyncService : Service() {
         super.onCreate()
         prefs = Prefs(this)
         connectivity = getSystemService(ConnectivityManager::class.java)
-        wakeLock = getSystemService(PowerManager::class.java)
-            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ClipSync:transfer")
+        val power = getSystemService(PowerManager::class.java)
+        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ClipSync:receive").apply { setReferenceCounted(false) }
+        transferLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ClipSync:send").apply { setReferenceCounted(false) }
+        @Suppress("DEPRECATION") // still honoured; LOW_LATENCY only applies while the screen is on
+        wifiLock = applicationContext.getSystemService(WifiManager::class.java)
+            .createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "ClipSync:transfer")
             .apply { setReferenceCounted(false) }
         if (!enterForeground()) {
             stopSelf()
@@ -317,7 +325,7 @@ class SyncService : Service() {
                 badPassword = false
                 wifiFailedOn = null
                 pendingConn?.close()
-                conn?.close()
+                conn?.close("settings changed")
                 linkSignal.release()
                 btSignal.release()
             }
@@ -328,6 +336,7 @@ class SyncService : Service() {
 
     override fun onDestroy() {
         running = false
+        runCatching { if (wifiLock.isHeld) wifiLock.release() }
         if (instance === this) {
             instance = null
             runCatching { connectivity.unregisterNetworkCallback(networkCallback) }
@@ -358,6 +367,10 @@ class SyncService : Service() {
         val old = progress
         if (p != null && old != null && p.percent == old.percent && p.file == old.file) return
         progress = p
+        runCatching {
+            if (p != null && !wifiLock.isHeld) wifiLock.acquire()
+            else if (p == null && wifiLock.isHeld) wifiLock.release()
+        }
         val now = SystemClock.elapsedRealtime()
         if (p == null || old == null || now - lastProgressPush >= 1000) {
             lastProgressPush = now
@@ -422,7 +435,7 @@ class SyncService : Service() {
         val sentAt = SystemClock.elapsedRealtime()
         outQueue.add(Out(Proto.T_PING))
         sendSignal.release()
-        main.postDelayed({ if (conn === c && c.lastRecv < sentAt) c.close() }, 4_000)
+        main.postDelayed({ if (conn === c && c.lastRecv < sentAt) c.close("the PC didn't answer a check") }, 4_000)
     }
 
     // ---- link thread ----
@@ -611,7 +624,7 @@ class SyncService : Service() {
                 }
                 if (w != null) {
                     pendingConn = w
-                    bt.close()
+                    bt.close("switched to Wi-Fi")
                 }
                 w != null
             }
@@ -622,14 +635,24 @@ class SyncService : Service() {
 
     private fun readLoop(c: Conn) {
         val files = FileReceiver(this) { file, percent -> setProgress(Progress(false, percent, file, 0)) }
+        var awakeUntil = 0L
         try {
             while (running) {
                 val f = c.recv()
-                wakeLock.acquire(15_000)
+                // Keep the CPU up while frames keep coming, renewing the wake lock every few seconds rather than
+                // per frame (a system call each time: 16 per MB during a file).
+                val now = SystemClock.elapsedRealtime()
+                if (now > awakeUntil - 10_000) {
+                    wakeLock.acquire(15_000)
+                    awakeUntil = now + 15_000
+                }
                 handle(c, f, files)
             }
         } catch (e: Exception) {
-            // connection closed
+            val kind = if (c.kind == Proto.LINK_WIFI) "Wi-Fi" else "Bluetooth"
+            val why = c.closeReason ?: (e.javaClass.simpleName + (e.message?.let { ": $it" } ?: ""))
+            prefs.lastDisconnect = "${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())}" +
+                " · $kind · $why · after ${Formatter.formatShortFileSize(this, c.bytesReceived)} received"
         } finally {
             files.cancel()
             if (progress?.sending == false) setProgress(null)
@@ -665,11 +688,12 @@ class SyncService : Service() {
     /** TLV list from the PC. Tag 1: its Bluetooth address, so the Bluetooth fallback needs no setup. */
     private fun readInfo(c: Conn, f: Frame) {
         var i = 1
-        while (i + 2 <= f.buf.size) {
+        val end = 1 + f.len
+        while (i + 2 <= end) {
             val tag = f.buf[i].toInt() and 0xFF
             val len = f.buf[i + 1].toInt() and 0xFF
             i += 2
-            if (i + len > f.buf.size) break
+            if (i + len > end) break
             if (tag == 1 && len == 6) {
                 val mac = (0 until 6).joinToString(":") { "%02X".format(f.buf[i + it].toInt() and 0xFF) }
                 if (prefs.btAddress != mac) prefs.btAddress = mac
@@ -740,6 +764,8 @@ class SyncService : Service() {
             val host = p.address.hostAddress ?: continue
             if (prefs.manualHost.isEmpty()) prefs.saveLast(host, Proto.readBe16(buf, 20))
             wifiFailedOn = null
+            // The hello is signed with our key, so the keys match again (after a re-link on the PC, say).
+            badPassword = false
             nudge()
         }
         runCatching { s.close() }
@@ -826,7 +852,7 @@ class SyncService : Service() {
                     checkAlive(c, o)
                 }
             } catch (e: Exception) {
-                c.close()
+                c.close("couldn't send: ${e.javaClass.simpleName}")
                 if (userItem) {
                     retry = o
                     retryUntil = SystemClock.elapsedRealtime() + RETRY_WINDOW
@@ -846,7 +872,7 @@ class SyncService : Service() {
             if (conn === c && c.lastRecv < sentAt) {
                 retry = o
                 retryUntil = SystemClock.elapsedRealtime() + RETRY_WINDOW
-                c.close()
+                c.close("the PC didn't answer after an item was sent")
             }
         }, 5_000)
     }
@@ -894,7 +920,7 @@ class SyncService : Service() {
             toast("Files need Wi-Fi. Connected over Bluetooth right now.")
             return
         }
-        wakeLock.acquire(60 * 60_000L)
+        transferLock.acquire(60 * 60_000L)
         toast(if (uris.size == 1) "Sending file…" else "Sending ${uris.size} files…")
         val items = uris.mapNotNull { describe(it) }
         val total = items.sumOf { it.size }.coerceAtLeast(1)
@@ -913,12 +939,12 @@ class SyncService : Service() {
             c.send(Proto.T_FILES_DONE, Proto.be16(count))
             toast("Sent $count file${if (count == 1) "" else "s"} to PC")
         } catch (e: Exception) {
-            c.close()
+            c.close("sending a file failed: ${e.javaClass.simpleName}")
             toast("File transfer interrupted")
         } finally {
             items.forEach { it.temp?.delete() }
             setProgress(null)
-            wakeLock.release()
+            transferLock.release()
         }
     }
 

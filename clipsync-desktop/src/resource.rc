@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <commctrl.h>
 #include "resource.h"
 
 1 24 "clipsync.manifest"
@@ -31,6 +32,21 @@ BEGIN
     CTEXT           "", IDC_PAIR_CODE, 12, 88, 216, 40, SS_CENTERIMAGE
     DEFPUSHBUTTON   "Link", IDOK, 122, 144, 50, 14, WS_DISABLED
     PUSHBUTTON      "Cancel", IDCANCEL, 178, 144, 50, 14
+END
+
+IDD_TRANSFER DIALOGEX 0, 0, 260, 92
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "ClipSync"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "", IDC_TX_TITLE, 12, 8, 236, 12, SS_ENDELLIPSIS | SS_NOPREFIX
+    LTEXT           "", IDC_TX_FILE, 12, 23, 236, 9, SS_ENDELLIPSIS | SS_NOPREFIX
+    CONTROL         "", IDC_TX_BAR, "msctls_progress32", PBS_SMOOTH, 12, 36, 236, 8
+    LTEXT           "", IDC_TX_DETAIL, 12, 49, 236, 18, SS_NOPREFIX
+    PUSHBUTTON      "Open folder", IDC_TX_OPEN, 84, 72, 56, 14, NOT WS_VISIBLE
+    PUSHBUTTON      "Cancel", IDC_TX_STOP, 144, 72, 50, 14
+    PUSHBUTTON      "Hide", IDCANCEL, 198, 72, 50, 14
 END
 
 1 VERSIONINFO

@@ -66,6 +66,7 @@ void config_load(void)
     if (SUCCEEDED(SHGetKnownFolderPath(&FOLDERID_RoamingAppData, 0, NULL, &appdata))) {
         swprintf(g_ini, MAX_PATH, L"%s\\ClipSync", appdata);
         CreateDirectoryW(g_ini, NULL);
+        log_init(g_ini);
         wcscat(g_ini, L"\\clipsync.ini");
         CoTaskMemFree(appdata);
     }

@@ -5,6 +5,7 @@ void link_start(void);
 void link_stop(void);
 void link_restart(void);  /* re-read config: port, Bluetooth, password */
 void link_nudge(void);    /* after sleep: tell the phone to reconnect now (Wi-Fi hello + Bluetooth wake) */
+void link_disconnect(void); /* drop the current connection (stops an incoming transfer); the phone reconnects */
 
 /* Returns LINK_NONE / LINK_WIFI / LINK_BT; copies the phone's name into peer if given. */
 int link_state(WCHAR *peer, int peer_len);

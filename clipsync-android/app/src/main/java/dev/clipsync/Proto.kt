@@ -107,10 +107,13 @@ object Proto {
 
 class WrongPasswordException : IOException("wrong password")
 
-/** A decrypted frame. buf[0] is the type; the payload is buf[1 until buf.size]. */
-class Frame(val type: Int, val buf: ByteArray) {
-    val len get() = buf.size - 1
-    fun bytes(): ByteArray = buf.copyOfRange(1, buf.size)
+/**
+ * A decrypted frame: buf[0] is the type, the payload is buf[1 until size]. The buffer is reused, so a frame is only
+ * valid until the next recv(): copy (bytes(), text()) anything kept longer.
+ */
+class Frame(val type: Int, val buf: ByteArray, private val size: Int) {
+    val len get() = size - 1
+    fun bytes(): ByteArray = buf.copyOfRange(1, size)
     fun text() = String(buf, 1, len, Charsets.UTF_8)
 }
 
@@ -141,6 +144,13 @@ class Conn(rawIn: InputStream, rawOut: OutputStream, private val closer: Closeab
         private set
     @Volatile var framesReceived = 0L
         private set
+    /** Why the app closed this link (null if it was the network or the PC). */
+    @Volatile var closeReason: String? = null
+        private set
+
+    // File chunks (most frames) reuse these: no garbage per 64 KB received. Bigger frames get their own arrays.
+    private val inBuf = ByteArray(REUSE)
+    private val outBuf = ByteArray(REUSE)
 
     /** Throws WrongPasswordException when the PC uses a different password. */
     fun handshake(master: ByteArray, name: String) {
@@ -182,23 +192,30 @@ class Conn(rawIn: InputStream, rawOut: OutputStream, private val closer: Closeab
     fun recv(): Frame {
         val len = input.readInt()
         if (len < 17 || len > Proto.PAYLOAD_MAX + 17) throw IOException("bad frame length")
-        val ct = ByteArray(len)
-        input.readFully(ct)
+        val small = len <= REUSE
+        val ct = if (small) inBuf else ByteArray(len)
+        input.readFully(ct, 0, len)
         decryptor.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, nonce(DIR_RECV, recvCounter++)))
-        val pt = try {
-            decryptor.doFinal(ct)
+        val pt = if (small) outBuf else ByteArray(len)
+        val n = try {
+            decryptor.doFinal(ct, 0, len, pt, 0)
         } catch (e: AEADBadTagException) {
             throw WrongPasswordException()
         }
         lastRecv = SystemClock.elapsedRealtime()
         bytesReceived += 4L + len
         framesReceived++
-        return Frame(pt[0].toInt() and 0xFF, pt)
+        return Frame(pt[0].toInt() and 0xFF, pt, n)
     }
 
     override fun close() {
         closed = true
         runCatching { closer.close() }
+    }
+
+    fun close(reason: String) {
+        if (closeReason == null) closeReason = reason
+        close()
     }
 
     private fun nonce(dir: Int, counter: Long) = ByteArray(12).also {
@@ -208,6 +225,7 @@ class Conn(rawIn: InputStream, rawOut: OutputStream, private val closer: Closeab
 
     private companion object {
         val MAGIC = "CSY1".toByteArray()
+        const val REUSE = Proto.CHUNK + 64 // a file chunk frame: type + 64 KB + tag, with room to spare
         const val DIR_SEND = 0 // client -> server
         const val DIR_RECV = 1
     }

@@ -433,7 +433,8 @@ class SettingsActivity : Activity() {
             "Processor time: ${"%.1f".format(s.cpuMs / 1000.0)} s (${"%.2f".format(cpuShare)}% of the time, " +
             "including this screen)\n" +
             "Wake-ups from the PC: ${s.wakeups} (about $perHour an hour)\n" +
-            "Reconnects: ${s.connects} · Data: ${Formatter.formatShortFileSize(this, s.bytes)}"
+            "Reconnects: ${s.connects} · Data: ${Formatter.formatShortFileSize(this, s.bytes)}" +
+            prefs.lastDisconnect.let { if (it.isEmpty()) "" else "\nLast disconnect: $it" }
     }
 
     private fun duration(ms: Long): String {

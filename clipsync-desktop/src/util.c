@@ -45,6 +45,46 @@ void post_notify(const WCHAR *fmt, ...)
     if (!g_hwnd || !PostMessageW(g_hwnd, WM_APP_NOTIFY, 0, (LPARAM)buf)) free(buf);
 }
 
+static CRITICAL_SECTION g_log_cs;
+static WCHAR g_log_path[MAX_PATH], g_log_old[MAX_PATH];
+
+void log_init(const WCHAR *dir)
+{
+    InitializeCriticalSection(&g_log_cs);
+    swprintf(g_log_path, MAX_PATH, L"%s\\clipsync.log", dir);
+    swprintf(g_log_old, MAX_PATH, L"%s\\clipsync.old.log", dir);
+}
+
+void log_event(const char *fmt, ...)
+{
+    char line[400];
+    SYSTEMTIME t;
+    if (!g_log_path[0]) return;
+    GetLocalTime(&t);
+    int n = snprintf(line, sizeof line, "%04d-%02d-%02d %02d:%02d:%02d.%03d  ", t.wYear, t.wMonth, t.wDay, t.wHour,
+                     t.wMinute, t.wSecond, t.wMilliseconds);
+    va_list ap;
+    va_start(ap, fmt);
+    int m = vsnprintf(line + n, sizeof line - (size_t)n - 3, fmt, ap);
+    va_end(ap);
+    n += m < 0 ? 0 : m >= (int)(sizeof line) - n - 3 ? (int)(sizeof line) - n - 4 : m;
+    line[n++] = '\r';
+    line[n++] = '\n';
+
+    EnterCriticalSection(&g_log_cs);
+    HANDLE h = CreateFileW(g_log_path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h != INVALID_HANDLE_VALUE) {
+        LARGE_INTEGER size;
+        DWORD w;
+        WriteFile(h, line, (DWORD)n, &w, NULL);
+        BOOL big = GetFileSizeEx(h, &size) && size.QuadPart > 512 * 1024;
+        CloseHandle(h);
+        if (big) MoveFileExW(g_log_path, g_log_old, MOVEFILE_REPLACE_EXISTING); /* keep this one and the previous */
+    }
+    LeaveCriticalSection(&g_log_cs);
+}
+
 void file_list_add(FileList *l, WCHAR *owned_path)
 {
     if (l->n == l->cap) {

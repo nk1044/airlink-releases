@@ -44,6 +44,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("tile_added", false)
         set(v) = sp.edit().putBoolean("tile_added", v).apply()
 
+    /** "14:32 · Wi-Fi · why · after 180 MB received", for the Battery & data card. */
+    var lastDisconnect: String
+        get() = sp.getString("last_disconnect", "")!!
+        set(v) = sp.edit().putString("last_disconnect", v).apply()
+
     var autostartVisited: Boolean
         get() = sp.getBoolean("autostart_visited", false)
         set(v) = sp.edit().putBoolean("autostart_visited", v).apply()

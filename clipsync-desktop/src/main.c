@@ -9,26 +9,33 @@
 #include "pair.h"
 #include "proto.h"
 #include "settings.h"
+#include "transfer.h"
 #include <shellapi.h>
 #include <stdio.h>
 
 enum {
-    IDM_SEND_FILES = 100, IDM_CANCEL, IDM_PAUSE, IDM_AUTOSTART, IDM_LINK, IDM_SETTINGS, IDM_FIREWALL,
-    IDM_UNINSTALL, IDM_EXIT,
+    IDM_SEND_FILES = 100, IDM_CANCEL, IDM_SHOW_TRANSFER, IDM_PAUSE, IDM_AUTOSTART, IDM_LINK, IDM_SETTINGS,
+    IDM_FIREWALL, IDM_UNINSTALL, IDM_EXIT,
 };
 
 HWND g_hwnd;
 static NOTIFYICONDATAW g_nid;
 static UINT g_wm_taskbar;
 static HICON g_icon;
-static int g_progress = -1;       /* percent while sending files, else -1 */
-static LPARAM g_progress_files;   /* MAKELPARAM(current, count) */
 static WCHAR g_balloon_folder[MAX_PATH]; /* opened when the balloon is clicked */
 static BOOL g_balloon_firewall;          /* clicking the balloon fixes the firewall */
 static BOOL g_firewall_blocked;          /* known to block the phone */
 static BOOL g_announced;                 /* "Connected to ..." shown once per run */
 
-static void tray_update(void)
+/* Only the tooltip: cheap enough for the transfer window's once-a-second progress. */
+void tray_set_tip(const WCHAR *tip)
+{
+    g_nid.uFlags = NIF_TIP | NIF_SHOWTIP;
+    wcsncpy(g_nid.szTip, tip, ARRAYSIZE(g_nid.szTip) - 1);
+    Shell_NotifyIconW(NIM_MODIFY, &g_nid);
+}
+
+void tray_update(void)
 {
     WCHAR peer[65], tip[128];
     int st = link_state(peer, ARRAYSIZE(peer));
@@ -36,9 +43,8 @@ static void tray_update(void)
 
     if (!g_cfg.has_key)
         wcscpy(tip, L"ClipSync: no phone linked (right-click > Link a phone)");
-    else if (g_progress >= 0)
-        swprintf(tip, ARRAYSIZE(tip), L"ClipSync: sending file %d of %d (%d%%)", LOWORD(g_progress_files),
-                 HIWORD(g_progress_files), g_progress);
+    else if (transfer_tip(tip, ARRAYSIZE(tip)))
+        ;
     else if (g_cfg.paused)
         wcscpy(tip, L"ClipSync: paused");
     else if (st != LINK_NONE)
@@ -80,6 +86,8 @@ static void balloon(const WCHAR *text, const WCHAR *folder)
     g_balloon_firewall = FALSE;
     Shell_NotifyIconW(NIM_MODIFY, &n);
 }
+
+void tray_balloon(const WCHAR *text, const WCHAR *folder) { balloon(text, folder); }
 
 static DWORD WINAPI firewall_check_main(void *unused)
 {
@@ -168,6 +176,9 @@ static void command(int id)
     case IDM_CANCEL:
         link_cancel_files();
         break;
+    case IDM_SHOW_TRANSFER:
+        transfer_show();
+        break;
     case IDM_PAUSE:
         set_paused(!g_cfg.paused);
         break;
@@ -209,7 +220,9 @@ static void show_menu(void)
     AppendMenuW(m, MF_STRING | MF_GRAYED, 0, status);
     if (g_firewall_blocked) AppendMenuW(m, MF_STRING, IDM_FIREWALL, L"Let the phone connect (firewall)");
     AppendMenuW(m, MF_SEPARATOR, 0, NULL);
-    if (g_progress >= 0)
+    if (tx_active(TX_SEND) || tx_active(TX_RECV))
+        AppendMenuW(m, MF_STRING, IDM_SHOW_TRANSFER, L"Show file transfer");
+    if (tx_active(TX_SEND))
         AppendMenuW(m, MF_STRING, IDM_CANCEL, L"Cancel sending files");
     else
         AppendMenuW(m, MF_STRING, IDM_SEND_FILES, L"Send copied files to phone");
@@ -315,14 +328,10 @@ static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         free(ri);
         return 0;
     }
-    case WM_APP_RECV_FILES: {
+    case WM_APP_RECV_FILES: { /* the transfer window (or its balloon) reports it; here: paste-ready + "Open folder" */
         FileList *fl = (FileList *)lp;
-        WCHAR dir[MAX_PATH], text[200];
         clip_set_files(hwnd, fl);
-        files_download_dir(dir, MAX_PATH);
-        swprintf(text, ARRAYSIZE(text), L"Received %d file%s in Downloads\\ClipSync. Press Ctrl+V in a folder to paste %s.",
-                 fl->n, fl->n == 1 ? L"" : L"s", fl->n == 1 ? L"it" : L"them");
-        balloon(text, dir);
+        transfer_received(fl);
         file_list_free(fl);
         free(fl);
         return 0;
@@ -331,10 +340,8 @@ static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         balloon((const WCHAR *)lp, NULL);
         free((void *)lp);
         return 0;
-    case WM_APP_PROGRESS:
-        g_progress = (int)wp;
-        g_progress_files = lp;
-        tray_update();
+    case WM_APP_TX:
+        transfer_on_message(wp, lp);
         return 0;
     case WM_COMMAND:
         command(LOWORD(wp));
@@ -430,6 +437,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmdline, int show)
     if (!g_hwnd) return 1;
     g_wm_taskbar = RegisterWindowMessageW(L"TaskbarCreated");
 
+    transfer_init();
     link_start();
     tray_add();
     AddClipboardFormatListener(g_hwnd);
@@ -443,6 +451,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmdline, int show)
 
     MSG msg;
     while (GetMessageW(&msg, NULL, 0, 0) > 0) {
+        if (transfer_dialog_message(&msg)) continue; /* Tab/Enter/Esc in the transfer window */
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }

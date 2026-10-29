@@ -20,17 +20,21 @@
 #include "image.h"
 #include "files.h"
 #include "pair.h"
+#include "transfer.h"
 #include <objbase.h>
 #include <ws2bth.h>
 #include <mstcpip.h>
 #include <iphlpapi.h>
+#include <stdio.h>
 
 #ifndef SIO_UDP_CONNRESET
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
 #endif
 
+#ifndef HEARTBEAT_MS /* overridable for tests */
 #define HEARTBEAT_MS   120000ULL
 #define DEAD_MS        300000ULL
+#endif
 #define BT_RETRY_MS    30000ULL
 #define HELLO_DELAY_MS 3000ULL  /* let a new network settle before saying hello */
 #define TEXT_MAX       (1u << 20)
@@ -207,7 +211,7 @@ static void handle_frame(Conn *c, RxState *rx, Frame *f)
     default:
         if (c->kind != LINK_WIFI) break; /* files are Wi-Fi only */
         switch (f->type) {
-        case T_FILE_BEGIN:  files_rx_begin(rx, f->data, f->len); break;
+        case T_FILE_BEGIN:  files_rx_begin(rx, f->data, f->len, c->peer); break;
         case T_FILE_DATA:   files_rx_data(rx, f->data, f->len); break;
         case T_FILE_END:    files_rx_end(rx); break;
         case T_FILE_CANCEL: files_rx_cancel(rx); break;
@@ -222,11 +226,18 @@ static DWORD WINAPI reader_main(void *arg)
     RxState rx = { 0 };
     Frame f;
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    while (proto_recv(c, &f) == RX_OK) {
+    int r;
+    UINT64 frames = 0;
+    while ((r = proto_recv(c, &f)) == RX_OK) {
         c->last_recv = GetTickCount64();
+        frames++;
         handle_frame(c, &rx, &f);
         free(f.buf);
     }
+    /* wsa 0 = the phone closed it cleanly; 10054 = reset; 10053 = we closed it (see the line before) */
+    log_event("%s link ended: %s, wsa=%d, frames received=%llu, %llu s since last frame",
+              c->kind == LINK_WIFI ? "Wi-Fi" : "Bluetooth", r == RX_AUTH ? "bad frame" : "read stopped", WSAGetLastError(),
+              (unsigned long long)frames, (unsigned long long)((GetTickCount64() - c->last_recv) / 1000));
     files_rx_abort(&rx);
 
     EnterCriticalSection(&g_cs);
@@ -252,6 +263,8 @@ static void adopt(Conn *c)
     Conn *old = g_active;
     g_active = c;
     LeaveCriticalSection(&g_cs);
+    log_event("%s link up with \"%s\"%s", c->kind == LINK_WIFI ? "Wi-Fi" : "Bluetooth", c->peer,
+              old ? " (replaces the previous link)" : "");
     if (old) {
         shutdown(old->s, SD_BOTH); /* its reader thread exits and drops its own ref */
         release(old);
@@ -288,7 +301,8 @@ static void auth_failed(const WCHAR *who)
 static void serve(SOCKET s, int kind, const struct sockaddr *from)
 {
     WCHAR who[64] = L"a Bluetooth device";
-    DWORD hs_timeout = 10000, io_timeout = 30000;
+    /* A phone can pause reading for a while (storage flush, busy CPU); dead phones are caught by the pings instead. */
+    DWORD hs_timeout = 10000, io_timeout = 90000;
     char magic[4];
     Config cfg;
 
@@ -325,7 +339,10 @@ static void serve(SOCKET s, int kind, const struct sockaddr *from)
         if (why == HS_AUTH) auth_failed(who);
         goto out;
     }
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&io_timeout, sizeof io_timeout);
+    /* No read timeout once connected: it would also fire between frames, whenever the phone is simply quiet
+       (idle, or receiving a file from us), and drop a healthy link. Pings and DEAD_MS catch dead phones. */
+    DWORD no_timeout = 0;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&no_timeout, sizeof no_timeout);
 
     /* Tell the phone our Bluetooth address, so its Bluetooth fallback needs no setup. Safe: c isn't shared yet. */
     UINT64 bt = g_bt_addr.btAddr;
@@ -543,6 +560,15 @@ static VOID NETIOAPI_API_ on_ip_change(PVOID ctx, PMIB_IPINTERFACE_ROW row, MIB_
     wake_net();
 }
 
+void link_disconnect(void)
+{
+    Conn *c = acquire();
+    if (c) {
+        shutdown(c->s, SD_BOTH); /* its reader thread cleans up; the phone reconnects by itself */
+        release(c);
+    }
+}
+
 void link_nudge(void)
 {
     g_nudge = 1;
@@ -634,14 +660,28 @@ static DWORD WINAPI net_main(void *unused)
             if (c) {
                 ULONGLONG since_recv = now - c->last_recv, since_send = now - c->last_send;
                 if (since_recv >= DEAD_MS) {
+                    log_event("closing: nothing from the phone for %llu s", (unsigned long long)(since_recv / 1000));
                     shutdown(c->s, SD_BOTH);
                 } else {
-                    if (since_send >= HEARTBEAT_MS) {
+                    /* Ping when we've been quiet, and also when the phone has: while we send it a file it only
+                       receives, and would look dead after DEAD_MS. Its PONG proves it's there (pings go out
+                       between file chunks). While waiting for that PONG, ping again at most every HEARTBEAT/4. */
+                    const ULONGLONG retry = HEARTBEAT_MS / 4;
+                    ULONGLONG since_ping = now - c->last_ping;
+                    if ((since_send >= HEARTBEAT_MS || since_recv >= HEARTBEAT_MS) && since_ping >= retry) {
                         enqueue(IT_FRAME, T_PING, NULL, 0);
-                        c->last_send = now;
-                        since_send = 0;
+                        if (since_recv >= HEARTBEAT_MS)
+                            log_event("ping: phone quiet for %llu s", (unsigned long long)(since_recv / 1000));
+                        c->last_ping = now;
+                        since_ping = 0;
+                        if (since_send >= HEARTBEAT_MS) {
+                            c->last_send = now;
+                            since_send = 0;
+                        }
                     }
-                    wait = min(wait, min(HEARTBEAT_MS - since_send, DEAD_MS - since_recv));
+                    ULONGLONG next_send = since_send < HEARTBEAT_MS ? HEARTBEAT_MS - since_send : retry - since_ping;
+                    ULONGLONG next_recv = since_recv < HEARTBEAT_MS ? HEARTBEAT_MS - since_recv : retry - since_ping;
+                    wait = min(wait, min(min(next_send, next_recv), DEAD_MS - since_recv));
                 }
                 release(c);
             }
@@ -706,6 +746,9 @@ static DWORD WINAPI net_main(void *unused)
 static BOOL send_frame(Conn *c, BYTE type, const void *a, size_t alen, const void *b, size_t blen)
 {
     if (!proto_send(c, type, a, alen, b, blen)) {
+        /* wsa 10060 = the phone stopped reading for SO_SNDTIMEO; 10054 = the phone reset the link */
+        log_event("send failed: frame type 0x%02x, wsa=%d, %llu s since the phone last sent anything", type,
+                  WSAGetLastError(), (unsigned long long)((GetTickCount64() - c->last_recv) / 1000));
         shutdown(c->s, SD_BOTH); /* the reader thread notices and cleans up */
         return FALSE;
     }
@@ -750,109 +793,164 @@ static void flush_priority(void)
     }
 }
 
-static void progress(int pct, int file, int count)
+#define SEND_MAX_FILES 10000
+#define WIFI_WAIT_MS   60000
+
+/* One file to send: where it is, and the name the phone gets ("Folder/sub/file.txt" for a folder's contents;
+   the phone turns the slashes into "_"). */
+typedef struct {
+    WCHAR *path, *name;
+    UINT64 size;
+} SendItem;
+
+typedef struct {
+    SendItem *v;
+    int n, cap;
+    UINT64 total;
+} SendList;
+
+static void add_item(SendList *l, const WCHAR *path, const WCHAR *name, UINT64 size)
 {
-    PostMessageW(g_hwnd, WM_APP_PROGRESS, (WPARAM)pct, MAKELPARAM(file, count));
+    if (l->n >= SEND_MAX_FILES) return;
+    if (l->n == l->cap) {
+        int cap = l->cap ? l->cap * 2 : 16;
+        SendItem *v = realloc(l->v, (size_t)cap * sizeof *v);
+        if (!v) return;
+        l->v = v;
+        l->cap = cap;
+    }
+    WCHAR *p = _wcsdup(path), *nm = _wcsdup(name);
+    if (!p || !nm) {
+        free(p);
+        free(nm);
+        return;
+    }
+    l->v[l->n].path = p;
+    l->v[l->n].name = nm;
+    l->v[l->n].size = size;
+    l->n++;
+    l->total += size;
+}
+
+/* A folder's contents, recursively. Links and junctions are skipped, so a loop can't run forever. */
+static void add_folder(SendList *l, const WCHAR *dir, const WCHAR *rel, int depth)
+{
+    WCHAR pattern[1024], path[1024], name[1024];
+    WIN32_FIND_DATAW fd;
+    if (depth > 32 || swprintf(pattern, ARRAYSIZE(pattern), L"%s\\*", dir) < 0) return;
+    HANDLE h = FindFirstFileExW(pattern, FindExInfoBasic, &fd, FindExSearchNameMatch, NULL, FIND_FIRST_EX_LARGE_FETCH);
+    if (h == INVALID_HANDLE_VALUE) return;
+    do {
+        if (!wcscmp(fd.cFileName, L".") || !wcscmp(fd.cFileName, L"..") || (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
+            continue;
+        if (swprintf(path, ARRAYSIZE(path), L"%s\\%s", dir, fd.cFileName) < 0 ||
+            swprintf(name, ARRAYSIZE(name), L"%s/%s", rel, fd.cFileName) < 0)
+            continue;
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            add_folder(l, path, name, depth + 1);
+        else
+            add_item(l, path, name, (UINT64)fd.nFileSizeHigh << 32 | fd.nFileSizeLow);
+    } while (l->n < SEND_MAX_FILES && FindNextFileW(h, &fd));
+    FindClose(h);
+}
+
+/* Sends one file. Returns FALSE only if the connection failed; an unreadable file is skipped (FILE_CANCEL). */
+static BOOL send_one(Conn *c, const SendItem *it, BYTE *buf, BOOL *sent)
+{
+    *sent = FALSE;
+    HANDLE h = CreateFileW(it->path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+        tx_add(TX_SEND, it->size); /* keep the bar honest */
+        return TRUE;
+    }
+    LARGE_INTEGER size;
+    GetFileSizeEx(h, &size);
+    int nl = 0;
+    char *name = utf8_from_wide(it->name, (int)wcslen(it->name), &nl);
+    nl = name ? utf8_clip(name, nl, 1024) : 0;
+    BYTE hdr[10];
+    put_be64(hdr, (UINT64)size.QuadPart);
+    put_be16(hdr + 8, (unsigned)nl);
+    BOOL ok = send_frame(c, T_FILE_BEGIN, hdr, 10, name, (size_t)nl);
+    free(name);
+
+    UINT64 left = (UINT64)size.QuadPart;
+    while (ok && left && !g_cancel) {
+        DWORD want = left < CHUNK_SIZE ? (DWORD)left : CHUNK_SIZE, got;
+        flush_priority(); /* clipboard items overtake the file */
+        if (!ReadFile(h, buf, want, &got, NULL) || got == 0) break;
+        ok = send_frame(c, T_FILE_DATA, buf, got, NULL, 0);
+        left -= got;
+        tx_add(TX_SEND, got);
+    }
+    CloseHandle(h);
+    if (!ok) return FALSE;
+    if (left) return send_frame(c, T_FILE_CANCEL, NULL, 0, NULL, 0);
+    *sent = send_frame(c, T_FILE_END, NULL, 0, NULL, 0);
+    return *sent;
 }
 
 static void send_files(FileList *fl)
 {
-    Conn *c = acquire();
-    if (!c) {
-        post_notify(L"Phone not connected. Files were not sent.");
-        return;
-    }
-    if (c->kind != LINK_WIFI) {
-        post_notify(L"Files need Wi-Fi. The phone is connected over Bluetooth.");
-        release(c);
-        return;
-    }
-
-    UINT64 total = 0, done = 0;
-    int count = 0, nfiles = 0, folders = 0, index = 0;
-    BOOL ok = TRUE;
+    SendList l = { 0 };
     for (int i = 0; i < fl->n; i++) {
         WIN32_FILE_ATTRIBUTE_DATA fa;
-        if (!GetFileAttributesExW(fl->paths[i], GetFileExInfoStandard, &fa) ||
-            (fa.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-            folders++;
-            free(fl->paths[i]);
-            fl->paths[i] = NULL;
-            continue;
-        }
-        total += (UINT64)fa.nFileSizeHigh << 32 | fa.nFileSizeLow;
-        nfiles++;
+        const WCHAR *slash = wcsrchr(fl->paths[i], L'\\');
+        const WCHAR *base = slash && slash[1] ? slash + 1 : fl->paths[i];
+        if (!GetFileAttributesExW(fl->paths[i], GetFileExInfoStandard, &fa)) continue;
+        if (fa.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            add_folder(&l, fl->paths[i], base, 0);
+        else
+            add_item(&l, fl->paths[i], base, (UINT64)fa.nFileSizeHigh << 32 | fa.nFileSizeLow);
     }
-    BYTE *buf = malloc(CHUNK_SIZE);
-    if (!buf || !nfiles) {
-        if (!nfiles) post_notify(L"Nothing to send. Folders aren't supported yet; select files instead.");
-        free(buf);
-        release(c);
+    if (!l.n) {
+        post_notify(L"Nothing to send: no files there.");
         return;
     }
 
     g_cancel = 0;
-    ULONGLONG last = 0;
-    progress(0, 1, nfiles);
-    for (int i = 0; i < fl->n && ok && !g_cancel; i++) {
-        if (!fl->paths[i]) continue;
-        index++;
-        HANDLE h = CreateFileW(fl->paths[i], GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                               NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
-        if (h == INVALID_HANDLE_VALUE) continue;
-        LARGE_INTEGER size;
-        GetFileSizeEx(h, &size);
-
-        const WCHAR *slash = wcsrchr(fl->paths[i], L'\\');
-        const WCHAR *base = slash ? slash + 1 : fl->paths[i];
-        int nl = 0;
-        char *name = utf8_from_wide(base, (int)wcslen(base), &nl);
-        nl = name ? utf8_clip(name, nl, 1024) : 0;
-        BYTE hdr[10];
-        put_be64(hdr, (UINT64)size.QuadPart);
-        put_be16(hdr + 8, (unsigned)nl);
-        ok = send_frame(c, T_FILE_BEGIN, hdr, 10, name, (size_t)nl);
-        free(name);
-
-        UINT64 left = (UINT64)size.QuadPart;
-        while (ok && left && !g_cancel) {
-            DWORD want = left < CHUNK_SIZE ? (DWORD)left : CHUNK_SIZE, got;
-            flush_priority();
-            if (!ReadFile(h, buf, want, &got, NULL) || got == 0) break;
-            ok = send_frame(c, T_FILE_DATA, buf, got, NULL, 0);
-            left -= got;
-            done += got;
-            ULONGLONG now = GetTickCount64();
-            if (now - last > 300) {
-                last = now;
-                progress(total ? (int)(done * 100 / total) : 100, index, nfiles);
-            }
-        }
-        CloseHandle(h);
-        if (!ok) break;
-        if (left) {
-            ok = send_frame(c, T_FILE_CANCEL, NULL, 0, NULL, 0);
-            continue;
-        }
-        ok = send_frame(c, T_FILE_END, NULL, 0, NULL, 0);
-        if (ok) count++;
+    tx_start(TX_SEND, l.n, l.total);
+    /* Files need Wi-Fi. If the phone isn't connected yet, or only over Bluetooth, give it a minute instead of
+       failing straight away. Clipboard items keep flowing meanwhile. */
+    Conn *c = NULL;
+    for (ULONGLONG until = GetTickCount64() + WIFI_WAIT_MS; !g_cancel && !g_quit;) {
+        c = acquire();
+        if (c && c->kind == LINK_WIFI) break;
+        release(c);
+        c = NULL;
+        if (GetTickCount64() >= until) break;
+        flush_priority();
+        Sleep(500);
     }
-    if (ok) {
-        BYTE n[2];
-        put_be16(n, (unsigned)count);
-        ok = send_frame(c, T_FILES_DONE, n, 2, NULL, 0);
-    }
-    progress(-1, 0, 0);
 
-    if (!ok)
-        post_notify(L"File transfer interrupted: the phone disconnected.");
-    else if (g_cancel)
-        post_notify(L"Sending cancelled. %d file%s sent.", count, count == 1 ? L"" : L"s");
-    else
-        post_notify(L"Sent %d file%s to the phone.%s", count, count == 1 ? L"" : L"s",
-                    folders ? L" Folders were skipped." : L"");
+    BYTE *buf = c ? malloc(CHUNK_SIZE) : NULL;
+    int count = 0, result = g_cancel ? TXR_CANCELLED : TXR_NO_LINK;
+    if (buf) {
+        BOOL ok = TRUE, sent;
+        tx_connected(TX_SEND, c->peer);
+        for (int i = 0; i < l.n && ok && !g_cancel; i++) {
+            tx_file(TX_SEND, i + 1, l.v[i].name, l.v[i].size);
+            ok = send_one(c, &l.v[i], buf, &sent);
+            if (sent) count++;
+        }
+        if (ok) {
+            BYTE n[2];
+            put_be16(n, (unsigned)count);
+            ok = send_frame(c, T_FILES_DONE, n, 2, NULL, 0);
+        }
+        result = !ok ? TXR_FAILED : g_cancel ? TXR_CANCELLED : TXR_OK;
+    }
+    log_event("send files: result=%d (0 ok, 1 cancelled, 2 failed, 3 no Wi-Fi link), %d of %d files", result, count, l.n);
+    tx_finish(TX_SEND, result, count);
+
     free(buf);
     release(c);
+    for (int i = 0; i < l.n; i++) {
+        free(l.v[i].path);
+        free(l.v[i].name);
+    }
+    free(l.v);
 }
 
 static DWORD WINAPI send_main(void *unused)

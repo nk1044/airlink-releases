@@ -1,4 +1,5 @@
 #include "files.h"
+#include "transfer.h"
 #include <shlobj.h>
 #include <stdio.h>
 #include <wctype.h>
@@ -32,9 +33,10 @@ static void sanitize(WCHAR *name)
 
 static BOOL exists(const WCHAR *path) { return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES; }
 
-void files_rx_begin(RxState *rx, const BYTE *p, size_t n)
+void files_rx_begin(RxState *rx, const BYTE *p, size_t n, const char *peer)
 {
     WCHAR dir[MAX_PATH], base[256], stem[256];
+    ULARGE_INTEGER free_bytes;
     files_rx_cancel(rx);
     if (n < 10 || 10 + get_be16(p + 8) > n || !files_download_dir(dir, MAX_PATH)) return;
     rx->size = get_be64(p);
@@ -44,6 +46,17 @@ void files_rx_begin(RxState *rx, const BYTE *p, size_t n)
     base[200] = 0;
     free(name);
     sanitize(base);
+
+    if (!tx_active(TX_RECV)) {
+        tx_start(TX_RECV, 0, 0);
+        tx_connected(TX_RECV, peer);
+    }
+    tx_file(TX_RECV, ++rx->index, base, rx->size);
+    /* Leave some room: a full disk breaks far more than this one transfer. The file's data is then ignored. */
+    if (GetDiskFreeSpaceExW(dir, &free_bytes, NULL, NULL) && free_bytes.QuadPart < rx->size + (64ULL << 20)) {
+        post_notify(L"Not enough free disk space for \"%s\". It was skipped.", base);
+        return;
+    }
 
     /* name.ext, name (1).ext, name (2).ext, ... */
     WCHAR *dot = wcsrchr(base, L'.');
@@ -63,6 +76,7 @@ void files_rx_begin(RxState *rx, const BYTE *p, size_t n)
 void files_rx_data(RxState *rx, const BYTE *p, size_t n)
 {
     DWORD w;
+    if (tx_active(TX_RECV)) tx_add(TX_RECV, n); /* skipped files still move the bar */
     if (!rx->h) return;
     if (rx->got + n > rx->size || !WriteFile(rx->h, p, (DWORD)n, &w, NULL) || w != n) {
         files_rx_cancel(rx);
@@ -90,7 +104,8 @@ void files_rx_cancel(RxState *rx)
     DeleteFileW(rx->part);
 }
 
-void files_rx_done(RxState *rx)
+/* Hands the received files to the UI thread (clipboard, "Open folder"). */
+static void post_done(RxState *rx)
 {
     if (!rx->done.n) return;
     FileList *l = malloc(sizeof *l);
@@ -104,10 +119,19 @@ void files_rx_done(RxState *rx)
     file_list_free(&rx->done);
 }
 
+void files_rx_done(RxState *rx)
+{
+    if (tx_active(TX_RECV)) tx_finish(TX_RECV, TXR_OK, rx->done.n);
+    rx->index = 0;
+    post_done(rx);
+}
+
 void files_rx_abort(RxState *rx)
 {
     files_rx_cancel(rx);
-    files_rx_done(rx); /* keep whatever finished before the link dropped */
+    if (tx_active(TX_RECV)) tx_finish(TX_RECV, TXR_FAILED, rx->done.n);
+    rx->index = 0;
+    post_done(rx); /* keep whatever finished before the link dropped */
 }
 
 static BOOL sendto_path(WCHAR lnk[MAX_PATH])

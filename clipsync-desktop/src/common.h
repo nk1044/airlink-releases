@@ -31,7 +31,7 @@ enum {
     WM_APP_RECV_IMAGE, /* lParam: RecvImage* */
     WM_APP_RECV_FILES, /* lParam: FileList* */
     WM_APP_NOTIFY,     /* lParam: malloc'd WCHAR* */
-    WM_APP_PROGRESS,   /* wParam: percent or (WPARAM)-1 when done, lParam: MAKELPARAM(file, count) */
+    WM_APP_TX,         /* wParam: TX_SEND/TX_RECV, lParam: started/ended (transfer.c) */
     WM_APP_FIREWALL,   /* wParam: TRUE if the firewall lets the phone in */
 };
 
@@ -69,6 +69,9 @@ char *utf8_from_wide(const WCHAR *w, int wlen, int *out_len);
 WCHAR *wide_from_utf8(const char *s, int len);
 UINT64 fnv64(const void *data, size_t len);
 void post_notify(const WCHAR *fmt, ...);
+/* Diagnostics: one line per connection event in %APPDATA%\ClipSync\clipsync.log (kept under ~1 MB). Any thread. */
+void log_init(const WCHAR *dir);
+void log_event(const char *fmt, ...);
 void file_list_add(FileList *l, WCHAR *owned_path);
 void file_list_free(FileList *l);
 

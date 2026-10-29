@@ -5,7 +5,9 @@
  *   testclient send     <host> <password> <text>
  *   testclient image    <host> <password> <image-file>
  *   testclient files    <host> <password> <file>...
- *   testclient listen   <host> <password>        print what the PC sends; Ctrl+C to stop
+ *   testclient listen   <host> <password> [bytes/s]   print what the PC sends (optionally reading slowly)
+ *
+ * <host> may be host:port.
  */
 #include "../src/common.h"
 #include "../src/crypto.h"
@@ -36,12 +38,16 @@ static BYTE *read_file(const char *path, size_t *len)
     return b;
 }
 
-static Conn *open_conn(const char *host)
+/* host or host:port */
+static Conn *open_conn(const char *host_port)
 {
     struct addrinfo hints = { 0 }, *res;
+    char host[256];
+    const char *colon = strchr(host_port, ':');
+    snprintf(host, sizeof host, "%.*s", colon ? (int)(colon - host_port) : (int)strlen(host_port), host_port);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    if (getaddrinfo(host, "47817", &hints, &res)) die("bad host");
+    if (getaddrinfo(host, colon ? colon + 1 : "47817", &hints, &res)) die("bad host");
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (connect(s, res->ai_addr, (int)res->ai_addrlen)) die("connect failed");
     freeaddrinfo(res);
@@ -105,13 +111,15 @@ static void send_file(Conn *c, const char *path)
     free(data);
 }
 
-static void listen_loop(Conn *c)
+/* bytes_per_sec > 0 simulates a slow phone/network: reads are throttled to that rate. */
+static void listen_loop(Conn *c, long bytes_per_sec)
 {
     FILE *out = NULL;
     int images = 0;
     Frame f;
     int r;
     while ((r = proto_recv(c, &f)) == RX_OK) {
+        if (bytes_per_sec > 0) Sleep((DWORD)((f.len + 21) * 1000 / bytes_per_sec));
         switch (f.type) {
         case T_PING:
             printf("PING\n");
@@ -190,7 +198,7 @@ static int run(int argc, char **argv)
         proto_send(c, T_FILES_DONE, n, 2, NULL, 0);
         printf("sent FILES_DONE\n");
     } else if (!strcmp(cmd, "listen")) {
-        listen_loop(c);
+        listen_loop(c, argc > 4 ? atol(argv[4]) : 0);
     } else {
         die("unknown command");
     }
