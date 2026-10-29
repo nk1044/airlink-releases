@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ClipSync — one clipboard for your PC and phone</title>
+  <meta name="description" content="ClipSync keeps the clipboard in sync between a Windows PC and an Android phone, with text, images and files, over Wi-Fi or Bluetooth. Encrypted, local only, no account.">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta property="og:title" content="ClipSync">
+  <meta property="og:description" content="Copy on the PC, paste on the phone. Local, encrypted, no account.">
+  <meta property="og:image" content="assets/clipsync-icon.svg">
+  <link rel="icon" type="image/svg+xml" href="assets/clipsync-icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-clipsync">
+  <header class="nav" id="top">
+    <div class="nav-inner">
+      <nav class="tabs" aria-label="Apps">
+        <a href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg>Home</a>
+        <a href="airlink.html"><img src="assets/icon.png" alt="" width="18" height="18">AirLink</a>
+        <a href="cmflink.html"><img src="assets/cmflink-icon.png" alt="" width="18" height="18">CMF Link</a>
+        <a href="clipsync.html" aria-current="page"><img src="assets/clipsync-icon.svg" alt="" width="18" height="18">ClipSync</a>
+      </nav>
+      <a class="nav-github" href="https://github.com/nk1044/airlink-releases/tree/main/clipsync-desktop">GitHub</a>
+      <a class="button button-small" href="#install">Download</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-copy">
+        <img class="hero-icon intro" style="--d:0ms" src="assets/clipsync-icon.svg" alt="ClipSync app icon" width="112" height="112">
+        <p class="eyebrow intro" style="--d:80ms">ClipSync for Windows and Android</p>
+        <h1 class="intro" style="--d:160ms">Copy here.<br>Paste there.</h1>
+        <p class="hero-lede intro" style="--d:240ms">One clipboard for your PC and your phone. Text and images sync as you copy, and files go either way in a tap. Over your own Wi‑Fi or Bluetooth, encrypted, with no cloud and no account.</p>
+        <div class="cta intro" style="--d:320ms">
+          <a class="button" href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.exe">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Windows
+          </a>
+          <a class="button button-secondary" href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.apk">Android</a>
+        </div>
+        <p class="hero-fineprint intro" style="--d:380ms"><span data-asset="ClipSync.exe" data-suffix=" · Free and open source">Free and open source</span> · Windows 10+ · Android 13+</p>
+      </div>
+
+      <div class="sync-scene intro" style="--d:420ms" role="img" aria-label="Text copied on a Windows PC appears on the phone's clipboard, next to the lit ClipSync tile in Android's Quick Settings.">
+        <div class="pc-screen" aria-hidden="true">
+          <div class="bubble"><small>Copied on the PC</small>Meet at 4 at the north gate?</div>
+          <div class="taskbar"><img src="assets/clipsync-icon.svg" alt=""><span>9:41</span></div>
+        </div>
+        <div class="sync-arrow" aria-hidden="true">
+          <svg viewBox="0 0 48 16"><path d="M2 8h40m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 48 16"><path d="M2 8h40m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="phone" aria-hidden="true">
+          <div class="qs">
+            <span class="on">ClipSync</span>
+            <span>Wi‑Fi</span>
+            <span>Bluetooth</span>
+            <span>Torch</span>
+          </div>
+          <div class="bubble"><small>On the phone's clipboard</small>Meet at 4 at the north gate?</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features">
+      <h2 class="reveal">Works the way you copy.</h2>
+      <div class="cards">
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span class="on">Ctrl + C</span></div>
+          <h3>Automatic from the PC</h3>
+          <p>Copy text or an image on the PC and it's already on your phone. No buttons, no notifications, no delay.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span class="on">ClipSync</span><span>Wi‑Fi</span></div>
+          <h3>One tap from the phone</h3>
+          <p>Tap the <b>ClipSync</b> tile in Quick Settings to send what you copied to the PC. Android only lets the app on screen read the clipboard, so a tap is the fastest way.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span>Share</span><span class="on">Send to PC</span></div>
+          <h3>Files, both ways</h3>
+          <p>On the phone, <b>Share › Send to PC</b>. On the PC, <b>Send to › Phone (ClipSync)</b> in Explorer, or the tray menu. Files land in <code>Downloads/ClipSync</code>.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span class="on">Wi‑Fi</span><span>Bluetooth</span></div>
+          <h3>Wi‑Fi first, Bluetooth backup</h3>
+          <p>ClipSync finds your PC on the local network by itself. If Wi‑Fi can't connect, it falls back to Bluetooth, and switches back when Wi‑Fi returns.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span class="on">AES‑256</span></div>
+          <h3>Private by design</h3>
+          <p>Every message is encrypted with a key the PC and phone agree on when you link them. Nothing leaves your network, and passwords that password managers mark as private are never synced.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span>🔔</span><span class="on">Silent</span></div>
+          <h3>Quiet</h3>
+          <p>No notification on the phone, and no window on the PC. Text and images sync silently; ClipSync only speaks up for things worth knowing, like files arriving.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- What syncs -->
+    <section class="section" id="what-syncs">
+      <h2 class="reveal">What syncs, and how.</h2>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Content</th><th>PC → phone</th><th>Phone → PC</th><th>Over Bluetooth</th></tr></thead>
+          <tbody>
+            <tr><td>Text</td><td>automatic on copy</td><td>tap the tile</td><td class="yes">Yes</td></tr>
+            <tr><td>Images</td><td>automatic on copy, up to 10 MB</td><td>tap the tile, or Share</td><td class="yes">Yes, up to 2 MB</td></tr>
+            <tr><td>Files</td><td>tray menu or Explorer's Send to</td><td>Share › Send to PC</td><td>Wi‑Fi only</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="section performance" id="performance">
+      <h2 class="reveal">Almost nothing.</h2>
+      <p class="lede narrow reveal">The PC reacts to clipboard events instead of polling, and the phone keeps one idle connection that wakes only when something arrives.</p>
+      <div class="stats">
+        <div class="stat reveal"><strong>90<small> KB</small></strong><span>the whole Windows app</span></div>
+        <div class="stat reveal"><strong>4<small> min</small></strong><span>between heartbeats</span></div>
+        <div class="stat reveal"><strong>0</strong><span>libraries, on either side</span></div>
+        <div class="stat reveal"><strong>0</strong><span>accounts or servers</span></div>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section class="section install" id="install">
+      <h2 class="reveal">Set up in two minutes.</h2>
+      <ol class="install-steps">
+        <li class="reveal"><h3>On the PC</h3><p>Download <a href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.exe">ClipSync.exe</a> and run it. It's a single file with nothing to install. If SmartScreen asks, click <b>More info › Run anyway</b>. When ClipSync asks to let your phone through the firewall, click <b>Yes</b>.</p></li>
+        <li class="reveal"><h3>On the phone</h3><p>Download <a href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.apk">ClipSync.apk</a> and install it, allowing installs from your browser when Android asks.</p></li>
+        <li class="reveal"><h3>Link them once</h3><p>On the PC, right‑click the ClipSync icon near the clock and choose <b>Link a phone</b>. In the phone app, tap <b>Link with PC</b>, check that both show the same code, and click <b>Link</b> on the PC. Both need the same Wi‑Fi this first time.</p></li>
+        <li class="reveal"><h3>Add the tile</h3><p>Add the <b>ClipSync</b> tile to Quick Settings. The setup screen on the phone walks you through it, and through the battery settings that keep the connection alive.</p></li>
+      </ol>
+      <div class="cta reveal">
+        <a class="button" href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.exe">Download for Windows</a>
+        <a class="button button-secondary" href="https://github.com/nk1044/airlink-releases/releases/latest/download/ClipSync.apk">Download for Android</a>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section faq" id="faq">
+      <h2 class="reveal">Questions.</h2>
+      <details class="reveal"><summary>Why do I have to tap to send from the phone?</summary><p>Since Android 10, only the app on screen or the active keyboard may read the clipboard. Tapping the tile briefly opens an invisible screen that reads it once and closes, so nothing appears.</p></details>
+      <details class="reveal"><summary>Does it need the internet?</summary><p>No. The PC and phone talk directly over your local Wi‑Fi, or over Bluetooth if they're paired. It works on a phone hotspot too.</p></details>
+      <details class="reveal"><summary>Where do received files and images go?</summary><p>On the PC, files go to <code>Downloads\ClipSync</code> and are put on the clipboard, so <b>Ctrl + V</b> in Explorer pastes them. On the phone, files go to <code>Download/ClipSync</code>, and received images are also saved to <code>Pictures/ClipSync</code> (you can turn that off).</p></details>
+      <details class="reveal"><summary>The phone keeps disconnecting.</summary><p>Some phones, such as Xiaomi's with HyperOS, stop background apps aggressively. Open the ClipSync app and follow its battery steps: set battery to <b>No restrictions</b> and allow <b>Autostart</b>.</p></details>
+      <details class="reveal"><summary>How do I remove it from the PC?</summary><p>Right‑click the tray icon and choose uninstall. That removes its settings, the link with your phone, the firewall rule and the startup entry. Files you received stay in Downloads.</p></details>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <p class="footer-apps"><a href="index.html">Home</a> · <a href="airlink.html">AirLink for Mac</a> · <a href="cmflink.html">CMF Link for Windows</a> · <a href="clipsync.html">ClipSync for Windows and Android</a></p>
+      <p><a href="https://github.com/nk1044/airlink-releases">Source on GitHub</a> · <a href="https://github.com/nk1044/airlink-releases/releases">All releases</a> · <a href="https://github.com/nk1044/airlink-releases/issues">Report an issue</a></p>
+      <p class="legal">AirLink, CMF Link and ClipSync are independent projects, not affiliated with or endorsed by realme, OPPO, Nothing, CMF, Apple, Microsoft or Google. realme, Nothing and CMF are trademarks of their owners. Mac and macOS are trademarks of Apple Inc. Windows is a trademark of Microsoft. Android is a trademark of Google LLC.</p>
+    </div>
+  </footer>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

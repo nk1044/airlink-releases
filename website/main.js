@@ -29,13 +29,13 @@
         const asset = assets.find((a) => a.name === name);
         return asset ? `${(asset.size / 1048576).toFixed(1)} MB` : "";
       };
-      const dmgSize = sizeOf("AirLink.dmg");
-      const label = document.getElementById("release-version");
-      if (label) label.textContent = `Version ${version}${dmgSize && ` · ${dmgSize}`} · Free and open source`;
+      // <span data-asset="AirLink.dmg" data-suffix=" · …"> becomes "Version 1.2.0 · 1.6 MB · …".
       document.querySelectorAll("[data-asset]").forEach((el) => {
         const size = sizeOf(el.dataset.asset);
-        if (size) el.textContent = `Version ${version} · ${size}`;
+        if (size) el.textContent = `Version ${version} · ${size}${el.dataset.suffix || ""}`;
       });
+      document.querySelectorAll("[data-version]").forEach((el) => { el.textContent = version; });
+      document.querySelectorAll("[data-version-wrap]").forEach((el) => { el.hidden = false; });
     })
     .catch(() => {});
 })();

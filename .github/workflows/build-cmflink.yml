@@ -5,15 +5,19 @@ name: CMF Link (Windows)
 on:
   push:
     branches: [main]
-    paths: ["cmflink/**", ".github/workflows/build-cmflink.yml"]
+    paths: ["cmflink/**", "!cmflink/**/*.md", ".github/workflows/build-cmflink.yml"]
   pull_request:
-    paths: ["cmflink/**", ".github/workflows/build-cmflink.yml"]
+    paths: ["cmflink/**", "!cmflink/**/*.md", ".github/workflows/build-cmflink.yml"]
   workflow_dispatch:
   workflow_call:
     inputs:
       version:
         type: string
         required: true
+      ref:
+        description: Git ref to build (the release tag); defaults to the triggering ref
+        type: string
+        required: false
 
 jobs:
   build:
@@ -24,6 +28,8 @@ jobs:
         working-directory: cmflink
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x

@@ -1,58 +1,138 @@
 name: Release
 
-# Push a tag like v1.2.0 to build every app and publish them together as one GitHub Release.
-# The website's and README's download links point at releases/latest/download/<file>, which
-# works for every app because each release carries all of them.
+# Push a tag like v1.2.0 to publish a GitHub Release with every app. Only the apps whose folder
+# or build workflow changed since the previous v* release are rebuilt (Markdown-only changes don't
+# count); the others' files are copied from that release. So every release still carries all of
+# them, and the releases/latest/download/<file> links on the website and in the README keep working.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)publish, e.g. v1.2.0
+        required: true
+      build_all:
+        description: Rebuild every app, even unchanged ones
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
 jobs:
-  version:
+  changes:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      previous: ${{ steps.plan.outputs.previous }}
+      airlink: ${{ steps.plan.outputs.airlink }}
+      cmflink: ${{ steps.plan.outputs.cmflink }}
+      clipsync-desktop: ${{ steps.plan.outputs.clipsync-desktop }}
+      clipsync-android: ${{ steps.plan.outputs.clipsync-android }}
     steps:
-      - id: v
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_ALL: ${{ inputs.build_all || false }}
+        run: |
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          previous=$(git describe --tags --abbrev=0 --match 'v*' "$TAG^" 2>/dev/null || true)
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          echo "Previous release: ${previous:-none}"
+          assets=""
+          [ -n "$previous" ] && assets=$(gh release view "$previous" --json assets -q '.assets[].name' 2>/dev/null || true)
+
+          # app  folder  file it publishes
+          while read -r app folder file; do
+            build=false
+            if [ "$BUILD_ALL" = true ] || [ -z "$previous" ]; then
+              build=true; why="no previous release to reuse"
+              [ "$BUILD_ALL" = true ] && why="build_all requested"
+            elif ! grep -qx "$file" <<< "$assets"; then
+              build=true; why="$previous has no $file"
+            elif ! git diff --quiet "$previous" "$TAG" -- "$folder" ":(exclude)$folder/*.md" ".github/workflows/build-$app.yml"; then
+              build=true; why="$folder changed since $previous"
+            else
+              why="unchanged since $previous, reusing its $file"
+            fi
+            echo "$app=$build" >> "$GITHUB_OUTPUT"
+            echo "- **$app**: $( [ $build = true ] && echo rebuilt || echo reused ) ($why)" | tee -a "$GITHUB_STEP_SUMMARY"
+          done <<'EOF'
+          airlink airlink-mac AirLink.dmg
+          cmflink cmflink CmfLink-win-x64.zip
+          clipsync-desktop clipsync-desktop ClipSync.exe
+          clipsync-android clipsync-android ClipSync.apk
+          EOF
 
   airlink:
-    needs: version
+    needs: changes
+    if: needs.changes.outputs.airlink == 'true'
     uses: ./.github/workflows/build-airlink.yml
     with:
-      version: ${{ needs.version.outputs.version }}
+      version: ${{ needs.changes.outputs.version }}
+      ref: ${{ needs.changes.outputs.tag }}
 
   cmflink:
-    needs: version
+    needs: changes
+    if: needs.changes.outputs.cmflink == 'true'
     uses: ./.github/workflows/build-cmflink.yml
     with:
-      version: ${{ needs.version.outputs.version }}
+      version: ${{ needs.changes.outputs.version }}
+      ref: ${{ needs.changes.outputs.tag }}
 
   clipsync-desktop:
-    needs: version
+    needs: changes
+    if: needs.changes.outputs.clipsync-desktop == 'true'
     uses: ./.github/workflows/build-clipsync-desktop.yml
     with:
-      version: ${{ needs.version.outputs.version }}
+      version: ${{ needs.changes.outputs.version }}
+      ref: ${{ needs.changes.outputs.tag }}
 
   clipsync-android:
-    needs: version
+    needs: changes
+    if: needs.changes.outputs.clipsync-android == 'true'
     uses: ./.github/workflows/build-clipsync-android.yml
     with:
-      version: ${{ needs.version.outputs.version }}
+      version: ${{ needs.changes.outputs.version }}
+      ref: ${{ needs.changes.outputs.tag }}
     secrets: inherit
 
   publish:
-    needs: [version, airlink, cmflink, clipsync-desktop, clipsync-android]
+    needs: [changes, airlink, cmflink, clipsync-desktop, clipsync-android]
+    # Skipped builds are expected; publish unless one of the builds that ran failed.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.changes.outputs.tag }}
       - uses: actions/download-artifact@v4
+        # Nothing to download when every app was reused; a missing file fails Checksums below.
+        continue-on-error: true
         with:
           path: dist
           merge-multiple: true
+      - name: Reuse unchanged apps from the previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS: ${{ needs.changes.outputs.previous }}
+        run: |
+          for file in AirLink.dmg AirLink.dmg.sha256 CmfLink-win-x64.zip ClipSync.exe ClipSync.apk; do
+            if [ ! -f "dist/$file" ]; then
+              echo "Reusing $file from $PREVIOUS"
+              gh release download "$PREVIOUS" --pattern "$file" --dir dist
+            fi
+          done
       - name: Checksums
         working-directory: dist
         run: |
@@ -61,13 +141,25 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.version.outputs.version }}
+          VERSION: ${{ needs.changes.outputs.version }}
+          PREVIOUS: ${{ needs.changes.outputs.previous }}
+          REBUILT: >-
+            ${{ needs.changes.outputs.airlink == 'true' && 'AirLink' || '' }}
+            ${{ needs.changes.outputs.cmflink == 'true' && 'CMF-Link' || '' }}
+            ${{ needs.changes.outputs.clipsync-desktop == 'true' && 'ClipSync-Windows' || '' }}
+            ${{ needs.changes.outputs.clipsync-android == 'true' && 'ClipSync-Android' || '' }}
         run: |
           sed "s/{{VERSION}}/$VERSION/g" .github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          rebuilt=$(echo $REBUILT | sed 's/ /, /g; s/-/ /g')
+          {
+            echo
+            echo "**Updated in this release:** ${rebuilt:-nothing}."
+            [ -n "$PREVIOUS" ] && echo "The other apps are unchanged since $PREVIOUS, and their files are carried over."
+          } >> "$RUNNER_TEMP/notes.md"
           files=(dist/AirLink.dmg dist/AirLink.dmg.sha256 dist/CmfLink-win-x64.zip dist/ClipSync.exe dist/ClipSync.apk dist/SHA256SUMS.txt)
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+            gh release create "$TAG" "${files[@]}" \
               --title "AirLink, CMF Link & ClipSync $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
           fi

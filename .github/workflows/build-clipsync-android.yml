@@ -9,15 +9,19 @@ name: ClipSync (Android)
 on:
   push:
     branches: [main]
-    paths: ["clipsync-android/**", ".github/workflows/build-clipsync-android.yml"]
+    paths: ["clipsync-android/**", "!clipsync-android/**/*.md", ".github/workflows/build-clipsync-android.yml"]
   pull_request:
-    paths: ["clipsync-android/**", ".github/workflows/build-clipsync-android.yml"]
+    paths: ["clipsync-android/**", "!clipsync-android/**/*.md", ".github/workflows/build-clipsync-android.yml"]
   workflow_dispatch:
   workflow_call:
     inputs:
       version:
         type: string
         required: true
+      ref:
+        description: Git ref to build (the release tag); defaults to the triggering ref
+        type: string
+        required: false
     secrets:
       CLIPSYNC_KEYSTORE_BASE64:
         required: false
@@ -36,6 +40,8 @@ jobs:
         working-directory: clipsync-android
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

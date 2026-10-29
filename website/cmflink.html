@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CMF Link — your CMF buds, in the Windows tray</title>
+  <meta name="description" content="CMF Link is a small Windows tray app for CMF Buds 2a: battery for each bud and the case, noise control, EQ, Ultra Bass, gestures and find my buds. Invisible until your buds connect.">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta property="og:title" content="CMF Link">
+  <meta property="og:description" content="Your CMF Buds 2a, in the Windows tray. Battery, noise control, EQ and gestures.">
+  <meta property="og:image" content="assets/cmflink-icon.png">
+  <link rel="icon" type="image/png" href="assets/cmflink-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-cmflink">
+  <header class="nav" id="top">
+    <div class="nav-inner">
+      <nav class="tabs" aria-label="Apps">
+        <a href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg>Home</a>
+        <a href="airlink.html"><img src="assets/icon.png" alt="" width="18" height="18">AirLink</a>
+        <a href="cmflink.html" aria-current="page"><img src="assets/cmflink-icon.png" alt="" width="18" height="18">CMF Link</a>
+        <a href="clipsync.html"><img src="assets/clipsync-icon.svg" alt="" width="18" height="18">ClipSync</a>
+      </nav>
+      <a class="nav-github" href="https://github.com/nk1044/airlink-releases/tree/main/cmflink">GitHub</a>
+      <a class="button button-small" href="https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip">Download</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-copy">
+        <img class="hero-icon intro" style="--d:0ms" src="assets/cmflink-icon.png" alt="CMF Link app icon" width="112" height="112">
+        <p class="eyebrow intro" style="--d:80ms">CMF Link for Windows</p>
+        <h1 class="intro" style="--d:160ms">Your buds.<br>Right in the tray.</h1>
+        <p class="hero-lede intro" style="--d:240ms">Battery, noise control, EQ, Ultra Bass and gestures for CMF&nbsp;Buds&nbsp;2a, in a flyout that feels like part of Windows&nbsp;11. Out of sight until your buds connect.</p>
+        <div class="cta intro" style="--d:320ms">
+          <a class="button" href="https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Download for Windows
+          </a>
+          <a class="link-arrow on-dark" href="#features">Learn more</a>
+        </div>
+        <p class="hero-fineprint intro" style="--d:380ms"><span data-asset="CmfLink-win-x64.zip" data-suffix=" · Free and open source">Free and open source</span> · Windows 10 2004 or later · x64</p>
+      </div>
+
+      <div class="desktop-win intro" style="--d:420ms" role="img" aria-label="A Windows desktop with the CMF Link flyout open above the tray: battery rings for the left bud, right bud and case, noise control set to Noise cancellation, the Pop EQ preset, and Ultra Bass turned on.">
+        <div class="flyout" aria-hidden="true">
+          <div class="fly-title">CMF Buds 2a <span>● Connected</span></div>
+          <div class="fly-rings">
+            <div><i style="--p:80"></i>Left 80 %</div>
+            <div><i style="--p:75"></i>Right 75 %</div>
+            <div><i style="--p:60"></i>Case 60 %</div>
+          </div>
+          <div class="fly-label">Noise control</div>
+          <div class="segmented"><span class="on">Noise cancellation</span><span>Transparency</span><span>Off</span></div>
+          <div class="fly-label">Equalizer</div>
+          <div class="fly-chips"><span>Dirac</span><span class="on">Pop</span><span>Rock</span><span>Classical</span><span>Vocals</span><span>Custom</span></div>
+          <div class="fly-row">Ultra Bass <span class="toggle on"></span></div>
+          <div class="fly-row">Low‑latency mode <span class="toggle"></span></div>
+        </div>
+        <div class="taskbar" aria-hidden="true">
+          <img class="tray-icon" src="assets/cmflink-icon.png" alt="">
+          <span class="clock">9:41 AM<br>23/10/2026</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features">
+      <h2 class="reveal">Every control.<br><span class="muted">One click from the tray.</span></h2>
+      <div class="cards">
+        <article class="card reveal">
+          <div class="card-art rings" aria-hidden="true"><span style="--p:80"></span><span style="--p:75"></span><span style="--p:60"></span></div>
+          <h3>Battery at a glance</h3>
+          <p>Left, right and case, as rings that turn orange at 20&nbsp;% and red at 10&nbsp;%. The tray icon can show a ring for the lower bud, and its tooltip shows both.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span class="on">ANC</span><span>Transparency</span><span>Off</span></div>
+          <h3>Noise control</h3>
+          <p>Noise cancellation, Transparency or Off. The selection settles once the buds confirm. Or press <b>Ctrl + Alt + N</b> anywhere to cycle through them.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span>Dirac</span><span class="on">Pop</span><span>Rock</span><span>Custom</span></div>
+          <h3>Equalizer and Ultra Bass</h3>
+          <p>Six presets plus a custom 3‑band EQ (±6 dB), Ultra Bass with its 5 levels, and a low‑latency mode for games and video.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span>Double tap</span><span class="on">Tap &amp; hold</span></div>
+          <h3>Gestures</h3>
+          <p>Remap double tap, triple tap, tap &amp; hold and double tap &amp; hold on each bud. Each gesture only offers the actions the buds accept for it.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span>Left</span><span class="on">Ring</span><span>Right</span></div>
+          <h3>Find my buds</h3>
+          <p>Ring the left or right bud when one has gone missing under the sofa. Take them out of your ears first: it's loud.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-art modes" aria-hidden="true"><span class="on">This PC</span><span class="on">Phone</span></div>
+          <h3>Dual connection</h3>
+          <p>See which devices the buds are connected to, such as your phone and this PC, and connect or disconnect them from the flyout.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section showcase">
+      <div class="split reveal">
+        <div>
+          <h3>Shares nicely with your phone.</h3>
+          <p>The buds let only one device use their controls at a time. CMF Link takes them only while you use it and hands them back 15&nbsp;s later, so the Nothing&nbsp;X app on your phone stays free. When your phone has them, CMF Link shows your last readings and says so.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="section performance" id="performance">
+      <h2 class="reveal">Featherweight.</h2>
+      <p class="lede narrow reveal">No scanning, and the panel exists only while it's open. Its memory is handed back when it closes.</p>
+      <div class="stats">
+        <div class="stat reveal"><strong>0.0<small>%</small></strong><span>CPU while idle</span></div>
+        <div class="stat reveal"><strong>13<small> MB</small></strong><span>memory while connected</span></div>
+        <div class="stat reveal"><strong>10<small> B</small></strong><span>battery read every 5 min</span></div>
+        <div class="stat reveal"><strong>0</strong><span>dependencies</span></div>
+      </div>
+      <p class="fineprint reveal">Measured in Task Manager on Windows 11 with the Release build, buds connected. The 2a doesn't push battery changes to a PC, so CMF Link reads it every 5 minutes.</p>
+    </section>
+
+    <!-- Install -->
+    <section class="section install" id="install">
+      <h2 class="reveal">Install in a minute.</h2>
+      <ol class="install-steps">
+        <li class="reveal"><h3>Get .NET 10</h3><p>Install the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 Desktop Runtime</a> (x64), if you don't have it yet.</p></li>
+        <li class="reveal"><h3>Download and run</h3><p><a href="https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip">CmfLink‑win‑x64.zip</a>: unzip it anywhere and run <code>CmfLink.exe</code>. If SmartScreen asks, click <b>More info › Run anyway</b>.</p></li>
+        <li class="reveal"><h3>Connect your buds</h3><p>Connect them to the PC for audio and the icon appears in the tray. Windows 11 puts new icons in the <b>^</b> overflow: drag it onto the taskbar to keep it in view.</p></li>
+      </ol>
+      <div class="cta reveal">
+        <a class="button" href="https://github.com/nk1044/airlink-releases/releases/latest/download/CmfLink-win-x64.zip">Download CMF Link</a>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section faq" id="faq">
+      <h2 class="reveal">Questions.</h2>
+      <details class="reveal"><summary>I connected my buds but there's no icon.</summary><p>Check the <b>^</b> overflow next to the clock. To keep it visible, go to <b>Settings › Personalization › Taskbar › Other system tray icons</b> and turn on <b>CMF Link</b>. The buds must be connected to this PC for audio.</p></details>
+      <details class="reveal"><summary>It says my phone's Nothing X app has the controls.</summary><p>Swipe Nothing X away from your phone's recent apps; pressing Home isn't enough. CMF Link picks the controls up within seconds while the panel is open. Audio keeps playing on both devices either way.</p></details>
+      <details class="reveal"><summary>Does it work with other Nothing or CMF buds?</summary><p>Out of the box it supports CMF Buds 2a. Nothing and CMF buds share one protocol, and each model is a single profile file, so others can be added. See <a href="https://github.com/nk1044/airlink-releases/tree/main/cmflink#adding-another-model">Adding another model</a>.</p></details>
+      <details class="reveal"><summary>Noise control springs back.</summary><p>The buds only change modes while you wear at least one of them.</p></details>
+      <details class="reveal"><summary>Where are its settings and logs?</summary><p>Settings live in <code>%LOCALAPPDATA%\CmfLink\settings.json</code>. Start it with <code>CmfLink.exe --log</code> to write a log with every frame next to them.</p></details>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <p class="footer-apps"><a href="index.html">Home</a> · <a href="airlink.html">AirLink for Mac</a> · <a href="cmflink.html">CMF Link for Windows</a> · <a href="clipsync.html">ClipSync for Windows and Android</a></p>
+      <p><a href="https://github.com/nk1044/airlink-releases">Source on GitHub</a> · <a href="https://github.com/nk1044/airlink-releases/releases">All releases</a> · <a href="https://github.com/nk1044/airlink-releases/issues">Report an issue</a></p>
+      <p class="legal">AirLink, CMF Link and ClipSync are independent projects, not affiliated with or endorsed by realme, OPPO, Nothing, CMF, Apple, Microsoft or Google. realme, Nothing and CMF are trademarks of their owners. Mac and macOS are trademarks of Apple Inc. Windows is a trademark of Microsoft. Android is a trademark of Google LLC.</p>
+    </div>
+  </footer>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

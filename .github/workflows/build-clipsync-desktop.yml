@@ -5,21 +5,27 @@ name: ClipSync (Windows)
 on:
   push:
     branches: [main]
-    paths: ["clipsync-desktop/**", ".github/workflows/build-clipsync-desktop.yml"]
+    paths: ["clipsync-desktop/**", "!clipsync-desktop/**/*.md", ".github/workflows/build-clipsync-desktop.yml"]
   pull_request:
-    paths: ["clipsync-desktop/**", ".github/workflows/build-clipsync-desktop.yml"]
+    paths: ["clipsync-desktop/**", "!clipsync-desktop/**/*.md", ".github/workflows/build-clipsync-desktop.yml"]
   workflow_dispatch:
   workflow_call:
     inputs:
       version:
         type: string
         required: true
+      ref:
+        description: Git ref to build (the release tag); defaults to the triggering ref
+        type: string
+        required: false
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: msys2/setup-msys2@v2
         id: msys2
         with:
@@ -34,10 +40,12 @@ jobs:
         working-directory: clipsync-desktop
         run: |
           gcc --version
-          call build.bat
-          copy build\clipsync.exe build\ClipSync.exe
+          call build.bat || exit /b 1
+          rem Filenames ignore case on Windows, so the renamed copy goes to its own folder.
+          if not exist dist mkdir dist
+          copy /y build\clipsync.exe dist\ClipSync.exe || exit /b 1
       - uses: actions/upload-artifact@v4
         with:
           name: clipsync-desktop
-          path: clipsync-desktop/build/ClipSync.exe
+          path: clipsync-desktop/dist/ClipSync.exe
           if-no-files-found: error

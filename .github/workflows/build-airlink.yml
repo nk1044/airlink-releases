@@ -5,15 +5,19 @@ name: AirLink (macOS)
 on:
   push:
     branches: [main]
-    paths: ["airlink-mac/**", ".github/workflows/build-airlink.yml"]
+    paths: ["airlink-mac/**", "!airlink-mac/**/*.md", ".github/workflows/build-airlink.yml"]
   pull_request:
-    paths: ["airlink-mac/**", ".github/workflows/build-airlink.yml"]
+    paths: ["airlink-mac/**", "!airlink-mac/**/*.md", ".github/workflows/build-airlink.yml"]
   workflow_dispatch:
   workflow_call:
     inputs:
       version:
         type: string
         required: true
+      ref:
+        description: Git ref to build (the release tag); defaults to the triggering ref
+        type: string
+        required: false
 
 jobs:
   build:
@@ -23,6 +27,8 @@ jobs:
         working-directory: airlink-mac
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - run: swift --version
       - name: Build
         run: swift build

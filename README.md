@@ -87,7 +87,7 @@ website/              the project website (static HTML/CSS/JS, deployed to GitHu
 
 ## CI and releases
 
-Each app has its own workflow, which runs when files in that app's folder change and uploads the build as an artifact on the run's page:
+Each app has its own workflow, which runs only when files in that app's folder change (edits to Markdown docs don't count) and uploads the build as an artifact on the run's page:
 
 | Workflow | Runs on | Produces |
 |---|---|---|
@@ -103,7 +103,7 @@ To release, push a version tag:
 git tag v1.1.0 && git push origin v1.1.0
 ```
 
-The [release workflow](.github/workflows/release.yml) builds all four apps stamped with that version and publishes them together as one GitHub Release. Because every release carries every app, the `releases/latest/download/<file>` links on the website and in this README always work.
+The [release workflow](.github/workflows/release.yml) rebuilds only the apps whose folder changed since the previous `v*` release, stamped with the new version. It copies the other apps' files over from that release unchanged, and publishes all four together as one GitHub Release. The release notes say which apps were updated. Because every release carries every app, the `releases/latest/download/<file>` links on the website and in this README always work. To rebuild everything anyway, run the workflow by hand (**Actions › Release › Run workflow**) with **build_all** checked.
 
 **Android signing.** Android only installs an update over an app signed with the same key. To give every release the same key, add these repository secrets (**Settings › Secrets and variables › Actions**):
 

@@ -1,5 +1,6 @@
 # ClipSync desktop (build.bat output: clipsync.exe, testclient.exe, resource.o)
 clipsync-desktop/build/
+clipsync-desktop/dist/
 
 # ClipSync Android (Gradle and Android Studio)
 clipsync-android/.gradle/
