@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window background is the only full-screen fill: views on top draw no background.
+         Keep it a solid colour: a gradient here cost this GPU ~8 ms a frame while scrolling. -->
+    <style name="Theme.Launcher" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowDisablePreview">false</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+    </style>
+</resources>

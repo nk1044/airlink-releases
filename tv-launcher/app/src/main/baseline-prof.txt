@@ -1,0 +1,23 @@
+# Startup, focus moves and row scrolling. ProfileInstaller writes this on install so the TV's
+# background dexopt (speed-profile) compiles these paths even without `cmd package compile`.
+HSPLdev/orbit/launcher/**->**(**)**
+Ldev/orbit/launcher/**;
+HSPLandroidx/recyclerview/widget/RecyclerView;->**(**)**
+HSPLandroidx/recyclerview/widget/RecyclerView$**;->**(**)**
+HSPLandroidx/recyclerview/widget/LinearLayoutManager;->**(**)**
+HSPLandroidx/recyclerview/widget/LinearLayoutManager$**;->**(**)**
+HSPLandroidx/recyclerview/widget/GridLayoutManager;->**(**)**
+HSPLandroidx/recyclerview/widget/GridLayoutManager$**;->**(**)**
+HSPLandroidx/recyclerview/widget/GapWorker;->**(**)**
+HSPLandroidx/recyclerview/widget/GapWorker$**;->**(**)**
+HSPLandroidx/recyclerview/widget/ChildHelper;->**(**)**
+HSPLandroidx/recyclerview/widget/ViewBoundsCheck;->**(**)**
+HSPLandroidx/recyclerview/widget/OrientationHelper;->**(**)**
+HSPLandroidx/recyclerview/widget/OrientationHelper$**;->**(**)**
+HSPLandroidx/recyclerview/widget/AdapterHelper;->**(**)**
+HSPLandroidx/recyclerview/widget/AsyncListDiffer;->**(**)**
+HSPLandroidx/recyclerview/widget/DiffUtil;->**(**)**
+HSPLandroidx/recyclerview/widget/DiffUtil$**;->**(**)**
+HSPLandroidx/recyclerview/widget/ListAdapter;->**(**)**
+HSPLkotlin/collections/**->**(**)**
+HSPLkotlin/jvm/internal/**->**(**)**

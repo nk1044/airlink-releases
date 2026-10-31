@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#080D16" android:pathData="M0,0h320v180h-320z" />
+    <!-- planet -->
+    <path android:fillColor="#F59E0B" android:pathData="M160,90m-26,0a26,26 0,1 1,52 0a26,26 0,1 1,-52 0" />
+    <!-- orbit ring -->
+    <path android:strokeColor="#EEF2FF" android:strokeAlpha="0.55" android:strokeWidth="4"
+        android:pathData="M100,104 C100,82 220,62 220,76 C220,98 100,118 100,104 Z" />
+</vector>

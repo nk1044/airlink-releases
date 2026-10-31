@@ -59,3 +59,10 @@ probe-output.txt
 .idea/
 *.swp
 *~
+
+# TV launcher (Gradle and Android Studio)
+tv-launcher/.gradle/
+tv-launcher/.kotlin/
+tv-launcher/build/
+tv-launcher/app/build/
+tv-launcher/local.properties
