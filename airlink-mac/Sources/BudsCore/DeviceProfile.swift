@@ -68,6 +68,7 @@ public protocol DeviceProfile: Sendable {
     func noiseValue(for mode: NoiseMode) -> UInt8
     func noiseMode(fromValue value: UInt8) -> NoiseMode?
 
+    /// Display order of the popover gauges, left to right.
     var batteryComponents: [Component] { get }
 
     /// A reason the buds would refuse `mode` given the wear state, or `nil` if it should be sent.
@@ -79,7 +80,7 @@ public protocol DeviceProfile: Sendable {
 extension DeviceProfile {
     public var sendsHello: Bool { true }
     public var subscriptions: [UInt8] { [Event.battery, Event.wearStatus, Event.noiseMode] }
-    public var batteryComponents: [Component] { [.left, .right, .caseBattery] }
+    public var batteryComponents: [Component] { [.left, .caseBattery, .right] }
 
     public func refusal(for mode: NoiseMode, wear: [Component: WearState]) -> String? { nil }
     public func rejectionMessage(status: UInt8) -> String { "Put a bud in your ear" }
