@@ -20,9 +20,18 @@ contains no native code, so a single universal APK covers every ABI.
 
 ## Making it the default launcher
 
-From the TV: open **Settings › Air Launch › Default launcher** and choose **Choose Home app now**. The TV
-then asks which Home app to use. Pick Air Launch, then **Always**. Some vendor builds hide this chooser.
-In that case, run `scripts/install.sh <ip> --home` once.
+Run `scripts/install.sh <ip> --home` once. It does two things:
+
+- saves Air Launch as the Home app (`cmd package set-home-activity`), so the Home button opens it;
+- sets the vendor's boot app (`settings put global auto_start_activity dev.orbit.launcher`). On this
+  TV the saved Home is ignored at power-on: the vendor's `FallbackHome` opens the package named in
+  that setting, or its own launcher when it's unset, and the vendor `TvService` force-stops every
+  other app at boot. With Air Launch named there, the TV boots straight into it.
+
+`scripts/restore-vendor-home.sh <ip>` undoes both.
+
+From the TV alone, **Settings › Air Launch › Default launcher** can save the Home choice, but it
+can't set the boot app (that needs adb).
 
 **Open at TV startup** is a separate switch. It enables a boot receiver that brings Air Launch up after
 the TV starts, which covers vendor builds that launch their own home regardless of your choice.

@@ -51,6 +51,9 @@ class Inputs(private val context: Context) {
                 all = named
                 launchable = canLaunch
                 onChanged?.invoke()
+                // Home now starts at boot before the TV's input service has registered its ports
+                // (and before the live-TV app resolves). Keep looking for a minute.
+                if (named.isEmpty() || !canLaunch) retryLater() else retries = 0
             }
         }
     }
@@ -61,6 +64,15 @@ class Inputs(private val context: Context) {
     fun intentFor(id: String): Intent =
         Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(id))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    private var retries = 0
+    private val retry = Runnable { refresh() }
+
+    private fun retryLater() {
+        if (!watching || retries >= RETRY_DELAYS.size) return
+        Work.main.removeCallbacks(retry)
+        Work.main.postDelayed(retry, RETRY_DELAYS[retries++])
+    }
 
     private val callback = object : TvInputManager.TvInputCallback() {
         override fun onInputStateChanged(inputId: String, state: Int) = refresh()
@@ -74,7 +86,14 @@ class Inputs(private val context: Context) {
         val m = tim ?: return
         if (on == watching) return
         watching = on
-        if (on) m.registerCallback(callback, Handler(Looper.getMainLooper())) else m.unregisterCallback(callback)
+        if (on) {
+            m.registerCallback(callback, Handler(Looper.getMainLooper()))
+            retries = 0
+            refresh()
+        } else {
+            m.unregisterCallback(callback)
+            Work.main.removeCallbacks(retry)
+        }
     }
 
     private fun order(type: Int) = when (type) {
@@ -98,6 +117,8 @@ class Inputs(private val context: Context) {
     }
 
     companion object {
+        private val RETRY_DELAYS = longArrayOf(1_500, 3_000, 5_000, 10_000, 20_000, 30_000)
+
         fun isHdmiLike(type: Int) = type == TvInputInfo.TYPE_HDMI || type == TvInputInfo.TYPE_DVI || type == TvInputInfo.TYPE_DISPLAY_PORT
 
         fun stateLabel(state: Int) = when (state) {

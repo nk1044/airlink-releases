@@ -100,9 +100,12 @@ class HomePage(host: Host) : Page(host) {
         appsAdapter.submitList(host.apps.homeOrder())
     }
 
-    private fun ago(e: AppEntry, now: Long): String =
-        if (now - e.lastUsed < DateUtils.MINUTE_IN_MILLIS) "just now"
-        else DateUtils.getRelativeTimeSpanString(e.lastUsed, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+    private fun ago(e: AppEntry, now: Long): String = when {
+        // Right after boot this TV's clock is wrong until it syncs: never show a nonsense time.
+        e.lastUsed > now + DateUtils.MINUTE_IN_MILLIS -> "recently"
+        now - e.lastUsed < DateUtils.MINUTE_IN_MILLIS -> "just now"
+        else -> DateUtils.getRelativeTimeSpanString(e.lastUsed, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+    }
 
     private fun bindInputs() {
         val list = host.inputs.forHome()

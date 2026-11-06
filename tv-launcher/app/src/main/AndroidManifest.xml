@@ -22,8 +22,14 @@
         android:supportsRtl="false"
         android:theme="@style/Theme.Launcher">
 
+        <!--
+            directBootAware: at boot the system looks for Home before the user is unlocked and only
+            accepts direct-boot-aware activities. Without this it picks the vendor's FallbackHome,
+            which opens the vendor launcher by name and ignores the saved Home choice.
+        -->
         <activity
             android:name=".HomeActivity"
+            android:directBootAware="true"
             android:clearTaskOnLaunch="true"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|locale|layoutDirection|density|fontScale"
             android:excludeFromRecents="true"
@@ -62,9 +68,11 @@
 
         <receiver
             android:name=".BootReceiver"
+            android:directBootAware="true"
             android:enabled="false"
             android:exported="true">
             <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />

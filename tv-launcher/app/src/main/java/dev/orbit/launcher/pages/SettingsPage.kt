@@ -72,7 +72,7 @@ class SettingsPage(host: Host) : Page(host) {
             val app = context.applicationContext as OrbitApp
             val on = !host.apps.showPhoneApps
             host.apps.showPhoneApps = on
-            context.getSharedPreferences("orbit", Context.MODE_PRIVATE).edit().putBoolean(OrbitApp.PREF_PHONE_APPS, on).apply()
+            app.store.getSharedPreferences(OrbitApp.PREFS, Context.MODE_PRIVATE).edit().putBoolean(OrbitApp.PREF_PHONE_APPS, on).apply()
             app.apps.refresh()
             refresh()
         }

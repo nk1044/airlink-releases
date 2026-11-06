@@ -54,10 +54,11 @@ object Art {
     }
     private val inflight = HashMap<String, ArrayList<(Bitmap?) -> Unit>>()
 
-    fun init(context: Context) {
+    /** [cacheRoot] must be device-protected storage: Home can start before the user is unlocked. */
+    fun init(context: Context, cacheRoot: File) {
         ctx = context.applicationContext
         pm = ctx.packageManager
-        dir = File(ctx.cacheDir, "art").apply { mkdirs() }
+        dir = File(cacheRoot, "art").apply { mkdirs() }
     }
 
     private fun keyOf(e: AppEntry, v: Variant) =

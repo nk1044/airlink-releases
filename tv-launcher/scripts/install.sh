@@ -46,6 +46,10 @@ fi
 if [[ $MAKE_HOME == 1 ]]; then
   echo "› setting Orbit as the Home app"
   "${A[@]}" shell cmd package set-home-activity "$PKG/.HomeActivity"
+  # This vendor's boot path ignores the saved Home: its FallbackHome opens the package named in
+  # this setting (or its own launcher when unset), and its TvService force-stops other apps at
+  # boot. Naming Air Launch here makes the TV boot into it.
+  "${A[@]}" shell settings put global auto_start_activity "$PKG"
   "${A[@]}" shell input keyevent KEYCODE_HOME
 else
   "${A[@]}" shell am start -W -n "$PKG/.HomeActivity" | grep -E "Status|TotalTime" || true

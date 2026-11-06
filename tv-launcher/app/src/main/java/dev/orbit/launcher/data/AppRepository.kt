@@ -33,15 +33,15 @@ class AppEntry(
  * in the background. Launch history is our own log: UsageStatsManager needs a permission that's
  * unreachable on most vendor TVs.
  */
-class AppRepository(private val context: Context) {
+class AppRepository(private val context: Context, dir: File) {
 
     interface Listener {
         fun onAppsChanged()
     }
 
     private val pm = context.packageManager
-    private val appsFile = AtomicFile(File(context.filesDir, "apps.v1"))
-    private val usageFile = AtomicFile(File(context.filesDir, "usage.v1"))
+    private val appsFile = AtomicFile(File(dir, "apps.v1"))
+    private val usageFile = AtomicFile(File(dir, "usage.v1"))
 
     @Volatile
     var apps: List<AppEntry> = emptyList()

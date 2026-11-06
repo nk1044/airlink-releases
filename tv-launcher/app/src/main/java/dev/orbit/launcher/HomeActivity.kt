@@ -1,7 +1,10 @@
 package dev.orbit.launcher
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.ComponentCallbacks2
+import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.ConnectivityManager
@@ -106,7 +109,14 @@ class HomeActivity : Activity(), Host, AppRepository.Listener {
     override fun onStart() {
         super.onStart()
         if (artReleased) { ArtSlot.restoreAttached(); artReleased = false }
-        if (appsDirty) { appsDirty = false; pages.forEach { it?.onAppsChanged() } }
+        // Always rebind on return: "Opened 2 h ago" labels go stale while another app is in front.
+        appsDirty = false
+        pages.forEach { it?.onAppsChanged() }
+        registerReceiver(clockReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_DATE_CHANGED)
+        })
         inputs.watch(true)
         watchNetwork(true)
         pages.forEach { (it as? SettingsPage)?.refresh() }
@@ -125,7 +135,15 @@ class HomeActivity : Activity(), Host, AppRepository.Listener {
         super.onPause()
     }
 
+    /** The clock jumps once it syncs after boot; relabel the recents when it does. */
+    private val clockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            pages.forEach { it?.onAppsChanged() }
+        }
+    }
+
     override fun onStop() {
+        unregisterReceiver(clockReceiver)
         inputs.watch(false)
         watchNetwork(false)
         super.onStop()
