@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">AirLink</h1>
-
+ 
 <p align="center">
   <b>Your realme buds, right in the menu bar.</b><br>
   Battery for each bud and the case, and one-click noise control, natively on macOS.
