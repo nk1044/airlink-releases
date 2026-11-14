@@ -29,7 +29,7 @@ let package = Package(
         .executableTarget(
             name: "AirLinkApp",
             dependencies: ["BudsCore", "BudsBluetooth"],
-            linkerSettings: [.linkedFramework("ServiceManagement")]
+            linkerSettings: [.linkedFramework("ServiceManagement"), .linkedFramework("CoreAudio")]
         ),
 
         // Hardware probe CLI. The embedded Info.plist carries NSBluetoothAlwaysUsageDescription.

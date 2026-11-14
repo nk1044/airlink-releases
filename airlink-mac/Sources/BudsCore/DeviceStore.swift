@@ -18,6 +18,8 @@ public final class DeviceStore {
 
     public private(set) var connection: Connection = .dormant
     public private(set) var deviceName = ""
+    /// The buds' Bluetooth address (as IOBluetooth prints it), while they are connected.
+    public private(set) var deviceAddress: String?
     public private(set) var profile: (any DeviceProfile)?
 
     /// Latest battery levels. A bud the buds did not report is absent. The case keeps its last
@@ -60,9 +62,11 @@ public final class DeviceStore {
     // MARK: Lifecycle (driven by the Bluetooth layer)
 
     /// Matching buds connected for audio: show the status item while the channel opens.
-    public func deviceAppeared(profile: any DeviceProfile, retry: @escaping @MainActor () -> Void) {
+    public func deviceAppeared(profile: any DeviceProfile, address: String? = nil,
+                               retry: @escaping @MainActor () -> Void) {
         resetDeviceState()
         deviceName = profile.displayName
+        deviceAddress = address
         self.profile = profile
         retryHandler = retry
         connection = .connecting
@@ -98,6 +102,7 @@ public final class DeviceStore {
         retryHandler = nil
         profile = nil
         deviceName = ""
+        deviceAddress = nil
         connection = .dormant
     }
 

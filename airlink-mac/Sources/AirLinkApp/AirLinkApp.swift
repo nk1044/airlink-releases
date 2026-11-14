@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let loginItem = LoginItem()
     let preferences = Preferences()
     private lazy var monitor = ConnectionMonitor(store: store)
+    private lazy var audioGuard = AudioRouteGuard(store: store, preferences: preferences)
     private lazy var statusItem = StatusItemController(store: store, loginItem: loginItem, preferences: preferences)
 
     static func main() {
@@ -28,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         loginItem.enableOnFirstLaunch()
         statusItem.start()
+        audioGuard.start()
         monitor.start()
         // Launch leaves a few MB of freed heap pages dirty; hand them back once things settle.
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { MemoryTrim.now() }
@@ -35,5 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         monitor.stop()
+        audioGuard.stop()
     }
 }

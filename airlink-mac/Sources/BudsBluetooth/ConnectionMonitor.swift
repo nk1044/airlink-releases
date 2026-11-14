@@ -96,7 +96,7 @@ public final class ConnectionMonitor: NSObject {
     static let audioSettleTime: Duration = .seconds(4)
 
     private func showItem(for profile: any DeviceProfile) {
-        store.deviceAppeared(profile: profile) { [weak self] in
+        store.deviceAppeared(profile: profile, address: device?.addressString) { [weak self] in
             self?.retry()
         }
     }

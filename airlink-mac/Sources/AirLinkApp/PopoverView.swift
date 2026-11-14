@@ -119,6 +119,9 @@ private struct SettingsSection: View {
                     .padding(.bottom, 2)
             }
             ToggleRow(title: "Show Battery in Menu Bar", isOn: $preferences.showBatteryInMenuBar)
+            ToggleRow(title: "Keep Audio in High Quality", isOn: $preferences.keepHighQualityAudio)
+                .help("When the buds connect, use the Mac's microphone so music stays in stereo. "
+                    + "Pick the buds' microphone in a call app to use it for that call.")
         }
     }
 }
